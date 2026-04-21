@@ -9,11 +9,39 @@ function isPeak(min: number, cfg: SchedulerConfig): boolean {
   });
 }
 
-export function generateSchedule(cfg: SchedulerConfig, buses: Bus[]): ScheduleResult {
+/**
+ * Generate a daily schedule.
+ *
+ * @param cfg        scheduler configuration
+ * @param buses      full bus list (only active buses are used)
+ * @param initialQueue  optional queue order carried from the previous day.
+ *                      If provided, the queue starts in this order (with any
+ *                      new active buses appended at the end and removed buses
+ *                      filtered out). All buses reset to available at start time.
+ */
+export function generateSchedule(
+  cfg: SchedulerConfig,
+  buses: Bus[],
+  initialQueue?: string[],
+): ScheduleResult {
   const activeBuses = buses.filter((b) => b.active);
+  const activeIds = new Set(activeBuses.map((b) => b.id));
   const start = parseHM(cfg.startTime);
   const end = parseEnd(cfg.endTime);
 
+  // Build queue: if an initial queue is provided (from previous day), use it
+  // but filter out buses that are no longer active and append any newly added buses.
+  let queue: string[];
+  if (initialQueue && initialQueue.length > 0) {
+    const carried = initialQueue.filter((id) => activeIds.has(id));
+    const carriedSet = new Set(carried);
+    const newBuses = activeBuses.filter((b) => !carriedSet.has(b.id)).map((b) => b.id);
+    queue = [...carried, ...newBuses];
+  } else {
+    queue = activeBuses.map((b) => b.id);
+  }
+
+  // All buses start fresh each day — available at operational start time
   const states = new Map<string, BusState>();
   activeBuses.forEach((b) =>
     states.set(b.id, {
@@ -23,9 +51,6 @@ export function generateSchedule(cfg: SchedulerConfig, buses: Bus[]): ScheduleRe
       lastAssignedMin: null,
     }),
   );
-
-  // Fixed queue order = order of active buses provided
-  let queue: string[] = activeBuses.map((b) => b.id);
 
   const trips: Trip[] = [];
   let cumulative = 0;
@@ -103,3 +128,4 @@ export function generateSchedule(cfg: SchedulerConfig, buses: Bus[]): ScheduleRe
     completedTurns: cumulative,
   };
 }
+

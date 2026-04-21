@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { Bus, SchedulerConfig, Trip } from "@/lib/scheduler/types";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { toast } from "sonner";
+import { Bus, SchedulerConfig, ScheduleResult, Trip } from "@/lib/scheduler/types";
 import { DEFAULT_BUSES, DEFAULT_CONFIG } from "@/lib/scheduler/defaults";
 import { generateSchedule } from "@/lib/scheduler/engine";
 import { format12 } from "@/lib/scheduler/time";
@@ -39,15 +40,23 @@ import {
   Activity,
   AlertTriangle,
   ArrowRight,
+  ArrowUpDown,
   Bus as BusIcon,
+  Calendar,
   CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
   Clock,
   Download,
   Flame,
+  Moon,
   Play,
   Plus,
   Route,
   Snowflake,
+  Sun,
   Trash2,
   TrendingUp,
   Users,
@@ -55,9 +64,21 @@ import {
   Zap,
 } from "lucide-react";
 
+/* ── persistence ─────────────────────────────────────────────────── */
+
 const STORAGE = "bus-turn-scheduler-v1";
 
-type Persisted = { config: SchedulerConfig; buses: Bus[] };
+type DaySchedule = {
+  day: number;
+  result: ScheduleResult;
+  initialQueue: string[];  // queue order used to start this day
+};
+
+type Persisted = {
+  config: SchedulerConfig;
+  buses: Bus[];
+  days?: DaySchedule[];
+};
 
 function load(): Persisted {
   if (typeof window === "undefined") return { config: DEFAULT_CONFIG, buses: DEFAULT_BUSES };
@@ -65,32 +86,82 @@ function load(): Persisted {
     const raw = localStorage.getItem(STORAGE);
     if (!raw) return { config: DEFAULT_CONFIG, buses: DEFAULT_BUSES };
     const p = JSON.parse(raw) as Persisted;
-    return { config: { ...DEFAULT_CONFIG, ...p.config }, buses: p.buses ?? DEFAULT_BUSES };
+    return {
+      config: { ...DEFAULT_CONFIG, ...p.config },
+      buses: p.buses ?? DEFAULT_BUSES,
+      days: p.days,
+    };
   } catch {
     return { config: DEFAULT_CONFIG, buses: DEFAULT_BUSES };
   }
 }
+
+/* ── dark mode ───────────────────────────────────────────────────── */
+
+function getInitialDark(): boolean {
+  if (typeof window === "undefined") return false;
+  const saved = localStorage.getItem("bus-scheduler-theme");
+  if (saved === "dark") return true;
+  if (saved === "light") return false;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+/* ── Dashboard ───────────────────────────────────────────────────── */
 
 export function Dashboard() {
   const [config, setConfig] = useState<SchedulerConfig>(DEFAULT_CONFIG);
   const [buses, setBuses] = useState<Bus[]>(DEFAULT_BUSES);
   const [hydrated, setHydrated] = useState(false);
   const [overrides, setOverrides] = useState<Record<number, string>>({});
+  const [dark, setDark] = useState(getInitialDark);
 
+  /* ── multi-day state ─── */
+  const [days, setDays] = useState<DaySchedule[]>([]);
+  const [currentDay, setCurrentDay] = useState(1);
+  const [activeTab, setActiveTab] = useState("schedule");
+
+  // dark-mode class toggle
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+    localStorage.setItem("bus-scheduler-theme", dark ? "dark" : "light");
+  }, [dark]);
+
+  // hydrate from persistence and generate Day 1 automatically
   useEffect(() => {
     const p = load();
     setConfig(p.config);
     setBuses(p.buses);
+    if (p.days && p.days.length > 0) {
+      setDays(p.days);
+      setCurrentDay(p.days.length);
+    } else {
+      // Auto-generate Day 1 on first load
+      const day1Result = generateSchedule(p.config, p.buses);
+      const day1: DaySchedule = {
+        day: 1,
+        result: day1Result,
+        initialQueue: p.buses.filter((b) => b.active).map((b) => b.id),
+      };
+      setDays([day1]);
+      setCurrentDay(1);
+    }
     setHydrated(true);
   }, []);
 
+  // persist on change
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(STORAGE, JSON.stringify({ config, buses }));
-  }, [config, buses, hydrated]);
+    localStorage.setItem(STORAGE, JSON.stringify({ config, buses, days }));
+  }, [config, buses, days, hydrated]);
 
-  const result = useMemo(() => {
-    const base = generateSchedule(config, buses);
+  // Current day's schedule result (with overrides applied)
+  const result: ScheduleResult = useMemo(() => {
+    const daySchedule = days.find((d) => d.day === currentDay);
+    if (!daySchedule) {
+      // Fallback: generate fresh
+      return generateSchedule(config, buses);
+    }
+    const base = daySchedule.result;
     const trips = base.trips.map((t) => {
       if (overrides[t.tripNumber - 1]) {
         return { ...t, busId: overrides[t.tripNumber - 1], missed: false };
@@ -98,14 +169,102 @@ export function Dashboard() {
       return t;
     });
     return { ...base, trips };
-  }, [config, buses, overrides]);
+  }, [days, currentDay, config, buses, overrides]);
 
+  /* ── generate schedule for current day ─── */
+  const handleGenerate = useCallback(() => {
+    // Determine initial queue: if generating for day > 1, carry from previous day
+    let initialQueue: string[] | undefined;
+    if (currentDay > 1) {
+      const prevDay = days.find((d) => d.day === currentDay - 1);
+      if (prevDay) {
+        initialQueue = prevDay.result.finalQueue;
+      }
+    }
+
+    const newResult = generateSchedule(config, buses, initialQueue);
+    const newDay: DaySchedule = {
+      day: currentDay,
+      result: newResult,
+      initialQueue: initialQueue ?? buses.filter((b) => b.active).map((b) => b.id),
+    };
+
+    setDays((prev) => {
+      // Replace if this day exists, otherwise append
+      const existing = prev.findIndex((d) => d.day === currentDay);
+      if (existing >= 0) {
+        const copy = [...prev];
+        copy[existing] = newDay;
+        // Remove any future days since config may have changed
+        return copy.filter((d) => d.day <= currentDay);
+      }
+      return [...prev, newDay];
+    });
+    setOverrides({});
+    setActiveTab("schedule");
+    toast.success(`Day ${currentDay} schedule generated`, {
+      description: `${newResult.completedTurns} turns scheduled for ${config.routeName}.${initialQueue ? " Queue carried from Day " + (currentDay - 1) + "." : ""}`,
+    });
+  }, [config, buses, currentDay, days]);
+
+  /* ── next day ─── */
+  const handleNextDay = useCallback(() => {
+    const nextDayNum = currentDay + 1;
+    const prevDayResult = days.find((d) => d.day === currentDay);
+    const prevQueue = prevDayResult?.result.finalQueue;
+
+    if (!prevQueue) {
+      toast.error("Generate the current day first", {
+        description: `Day ${currentDay} must be generated before moving to Day ${nextDayNum}.`,
+      });
+      return;
+    }
+
+    const newResult = generateSchedule(config, buses, prevQueue);
+    const newDay: DaySchedule = {
+      day: nextDayNum,
+      result: newResult,
+      initialQueue: prevQueue,
+    };
+
+    setDays((prev) => {
+      const existing = prev.findIndex((d) => d.day === nextDayNum);
+      if (existing >= 0) {
+        const copy = [...prev];
+        copy[existing] = newDay;
+        return copy;
+      }
+      return [...prev, newDay];
+    });
+    setCurrentDay(nextDayNum);
+    setOverrides({});
+    setActiveTab("schedule");
+    toast.success(`Day ${nextDayNum} schedule generated`, {
+      description: `Queue carried from Day ${currentDay}. Starting bus: ${prevQueue[0]}.`,
+    });
+  }, [config, buses, currentDay, days]);
+
+  /* ── filters ─── */
   const [search, setSearch] = useState("");
   const [periodFilter, setPeriodFilter] = useState<"all" | "peak" | "off-peak">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "assigned" | "missed">("all");
 
+  /* ── sorting ─── */
+  type SortKey = "tripNumber" | "departureMin" | "period" | "busId" | "tripDurationMin" | "busTotalTurns";
+  const [sortKey, setSortKey] = useState<SortKey>("tripNumber");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
   const filteredTrips = useMemo(() => {
-    return result.trips.filter((t) => {
+    let trips = result.trips.filter((t) => {
       if (periodFilter !== "all" && t.period !== periodFilter) return false;
       if (statusFilter === "assigned" && t.missed) return false;
       if (statusFilter === "missed" && !t.missed) return false;
@@ -122,8 +281,37 @@ export function Dashboard() {
       }
       return true;
     });
-  }, [result.trips, search, periodFilter, statusFilter]);
 
+    // sort
+    trips = [...trips].sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case "tripNumber":
+          cmp = a.tripNumber - b.tripNumber;
+          break;
+        case "departureMin":
+          cmp = a.departureMin - b.departureMin;
+          break;
+        case "period":
+          cmp = a.period.localeCompare(b.period);
+          break;
+        case "busId":
+          cmp = (a.busId ?? "").localeCompare(b.busId ?? "");
+          break;
+        case "tripDurationMin":
+          cmp = a.tripDurationMin - b.tripDurationMin;
+          break;
+        case "busTotalTurns":
+          cmp = (a.busTotalTurns ?? 0) - (b.busTotalTurns ?? 0);
+          break;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+
+    return trips;
+  }, [result.trips, search, periodFilter, statusFilter, sortKey, sortDir]);
+
+  /* ── analytics ─── */
   const turnsPerBus = useMemo(
     () =>
       result.finalBusStates
@@ -142,8 +330,14 @@ export function Dashboard() {
       ? (result.completedTurns / usedBuses).toFixed(1)
       : "0";
 
+  /* ── current day info ─── */
+  const currentDaySchedule = days.find((d) => d.day === currentDay);
+  const startingQueue = currentDaySchedule?.initialQueue;
+
+  /* ── CSV export ─── */
   const exportCSV = () => {
     const header = [
+      "Day",
       "Trip",
       "Departure",
       "Period",
@@ -154,6 +348,7 @@ export function Dashboard() {
       "Status",
     ];
     const rows = result.trips.map((t) => [
+      currentDay,
       t.tripNumber,
       t.departureLabel,
       t.period,
@@ -168,14 +363,16 @@ export function Dashboard() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `schedule-${config.routeName.replace(/\s+/g, "-")}.csv`;
+    a.download = `schedule-day${currentDay}-${config.routeName.replace(/\s+/g, "-")}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    toast.success("CSV exported successfully", { description: `Day ${currentDay}: ${result.trips.length} trips exported.` });
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="bg-grid border-b border-border">
+    <div className="min-h-screen bg-background print:bg-white">
+      {/* ══ HEADER ══ */}
+      <div className="bg-grid border-b border-border print:bg-white print:border-gray-200">
         <div className="mx-auto max-w-[1400px] px-6 py-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -195,20 +392,87 @@ export function Dashboard() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={exportCSV}>
+            <div className="flex items-center gap-2 print:hidden">
+              {/* Dark mode toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setDark((d) => !d)}
+                aria-label="Toggle dark mode"
+                id="dark-mode-toggle"
+              >
+                {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </Button>
+              <Button variant="outline" onClick={exportCSV} id="export-csv-btn">
                 <Download className="mr-2 h-4 w-4" /> Export CSV
               </Button>
-              <Button onClick={() => window.print()} variant="outline">
+              <Button onClick={() => window.print()} variant="outline" id="print-btn">
                 Print
               </Button>
-              <Button onClick={() => setBuses([...buses])}>
-                <Play className="mr-2 h-4 w-4" /> Regenerate
+              <Button onClick={handleGenerate} id="generate-schedule-btn">
+                <Play className="mr-2 h-4 w-4" /> Generate Schedule
               </Button>
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+          {/* ── Day selector strip ── */}
+          <div className="mt-4 flex flex-wrap items-center gap-3 print:hidden">
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                disabled={currentDay <= 1}
+                onClick={() => { setCurrentDay((d) => d - 1); setOverrides({}); }}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center gap-1.5 px-3">
+                <Calendar className="h-4 w-4 text-primary" />
+                <span className="font-semibold">Day {currentDay}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                disabled={currentDay >= days.length}
+                onClick={() => { setCurrentDay((d) => d + 1); setOverrides({}); }}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleNextDay}
+              id="next-day-btn"
+            >
+              <Plus className="mr-1 h-4 w-4" /> Next Day
+            </Button>
+            {startingQueue && currentDay > 1 && (
+              <Badge variant="secondary" className="text-xs">
+                Queue from Day {currentDay - 1} → starts with {startingQueue[0]}
+              </Badge>
+            )}
+            <div className="ml-auto flex items-center gap-1">
+              {days.map((d) => (
+                <button
+                  key={d.day}
+                  onClick={() => { setCurrentDay(d.day); setOverrides({}); }}
+                  className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-medium transition-colors ${
+                    d.day === currentDay
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-accent"
+                  }`}
+                >
+                  {d.day}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── KPI Strip ── */}
+          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
             <KPI
               icon={<CheckCircle2 className="h-4 w-4" />}
               label="Turns Completed"
@@ -245,12 +509,13 @@ export function Dashboard() {
         </div>
       </div>
 
+      {/* ══ MAIN CONTENT ══ */}
       <div className="mx-auto max-w-[1400px] px-6 py-8">
-        <Tabs defaultValue="live" className="w-full">
-          <TabsList className="mb-6 grid w-full grid-cols-3 md:grid-cols-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="mb-6 grid w-full grid-cols-3 md:grid-cols-6 print:hidden">
             <TabsTrigger value="live">Live Map</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
-            <TabsTrigger value="buses">Buses & Queue</TabsTrigger>
+            <TabsTrigger value="buses">Buses &amp; Queue</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="logic">Logic Flow</TabsTrigger>
             <TabsTrigger value="setup">Setup</TabsTrigger>
@@ -260,22 +525,34 @@ export function Dashboard() {
             <LiveMap result={result} buses={buses} config={config} />
           </TabsContent>
 
+          {/* ── SCHEDULE TAB ── */}
           <TabsContent value="schedule" className="space-y-4">
+            {/* Queue carry-over info banner */}
+            {currentDay > 1 && startingQueue && (
+              <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+                <Calendar className="h-4 w-4 text-primary shrink-0" />
+                <div>
+                  <strong>Day {currentDay}</strong> — Queue carried from Day {currentDay - 1}.
+                  Starting order: {startingQueue.slice(0, 5).join(" → ")}{startingQueue.length > 5 ? " → …" : ""}
+                </div>
+              </div>
+            )}
             <Card>
               <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
                 <CardTitle>Daily Schedule</CardTitle>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 print:hidden">
                   <Input
                     placeholder="Search bus / time / trip…"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className="w-56"
+                    id="schedule-search"
                   />
                   <Select
                     value={periodFilter}
                     onValueChange={(v) => setPeriodFilter(v as typeof periodFilter)}
                   >
-                    <SelectTrigger className="w-36">
+                    <SelectTrigger className="w-36" id="period-filter">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -288,7 +565,7 @@ export function Dashboard() {
                     value={statusFilter}
                     onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}
                   >
-                    <SelectTrigger className="w-36">
+                    <SelectTrigger className="w-36" id="status-filter">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -303,14 +580,21 @@ export function Dashboard() {
                 <ScheduleTable
                   trips={filteredTrips}
                   buses={buses}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={handleSort}
                   onReassign={(tripIdx, newBus) => {
                     setOverrides((o) => ({ ...o, [tripIdx]: newBus }));
+                    toast.info("Trip reassigned", {
+                      description: `Trip #${tripIdx + 1} reassigned to ${newBus}.`,
+                    });
                   }}
                 />
               </CardContent>
             </Card>
           </TabsContent>
 
+          {/* ── BUSES & QUEUE TAB ── */}
           <TabsContent value="buses" className="space-y-4">
             <div className="grid gap-4 lg:grid-cols-3">
               <Card className="lg:col-span-2">
@@ -416,6 +700,7 @@ export function Dashboard() {
             </div>
           </TabsContent>
 
+          {/* ── ANALYTICS TAB ── */}
           <TabsContent value="analytics" className="space-y-4">
             <div className="grid gap-4 lg:grid-cols-2">
               <Card>
@@ -474,10 +759,12 @@ export function Dashboard() {
             </div>
           </TabsContent>
 
+          {/* ── LOGIC FLOW TAB ── */}
           <TabsContent value="logic">
             <FlowChart />
           </TabsContent>
 
+          {/* ── SETUP TAB ── */}
           <TabsContent value="setup" className="space-y-4">
             <SetupPanel
               config={config}
@@ -491,6 +778,10 @@ export function Dashboard() {
     </div>
   );
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   Sub-components
+   ══════════════════════════════════════════════════════════════════ */
 
 function KPI({
   icon,
@@ -543,13 +834,32 @@ function InfoCard({
   );
 }
 
+/* ── Sortable Schedule Table ─────────────────────────────────────── */
+
+type SortKey = "tripNumber" | "departureMin" | "period" | "busId" | "tripDurationMin" | "busTotalTurns";
+
+function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: "asc" | "desc" }) {
+  if (col !== sortKey) return <ArrowUpDown className="ml-1 inline h-3 w-3 opacity-40" />;
+  return sortDir === "asc" ? (
+    <ChevronUp className="ml-1 inline h-3 w-3 text-primary" />
+  ) : (
+    <ChevronDown className="ml-1 inline h-3 w-3 text-primary" />
+  );
+}
+
 function ScheduleTable({
   trips,
   buses,
+  sortKey,
+  sortDir,
+  onSort,
   onReassign,
 }: {
   trips: Trip[];
   buses: Bus[];
+  sortKey: SortKey;
+  sortDir: "asc" | "desc";
+  onSort: (key: SortKey) => void;
   onReassign: (idx: number, newBus: string) => void;
 }) {
   return (
@@ -557,15 +867,45 @@ function ScheduleTable({
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/40">
-            <TableHead className="w-12">#</TableHead>
-            <TableHead>Departure</TableHead>
-            <TableHead>Period</TableHead>
-            <TableHead>Bus</TableHead>
-            <TableHead>Duration</TableHead>
+            <TableHead
+              className="w-12 cursor-pointer select-none"
+              onClick={() => onSort("tripNumber")}
+            >
+              # <SortIcon col="tripNumber" sortKey={sortKey} sortDir={sortDir} />
+            </TableHead>
+            <TableHead
+              className="cursor-pointer select-none"
+              onClick={() => onSort("departureMin")}
+            >
+              Departure <SortIcon col="departureMin" sortKey={sortKey} sortDir={sortDir} />
+            </TableHead>
+            <TableHead
+              className="cursor-pointer select-none"
+              onClick={() => onSort("period")}
+            >
+              Period <SortIcon col="period" sortKey={sortKey} sortDir={sortDir} />
+            </TableHead>
+            <TableHead
+              className="cursor-pointer select-none"
+              onClick={() => onSort("busId")}
+            >
+              Bus <SortIcon col="busId" sortKey={sortKey} sortDir={sortDir} />
+            </TableHead>
+            <TableHead
+              className="cursor-pointer select-none"
+              onClick={() => onSort("tripDurationMin")}
+            >
+              Duration <SortIcon col="tripDurationMin" sortKey={sortKey} sortDir={sortDir} />
+            </TableHead>
             <TableHead>Next Available</TableHead>
-            <TableHead>Bus Turns</TableHead>
+            <TableHead
+              className="cursor-pointer select-none"
+              onClick={() => onSort("busTotalTurns")}
+            >
+              Bus Turns <SortIcon col="busTotalTurns" sortKey={sortKey} sortDir={sortDir} />
+            </TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Override</TableHead>
+            <TableHead className="print:hidden">Override</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -613,7 +953,7 @@ function ScheduleTable({
                   </Badge>
                 )}
               </TableCell>
-              <TableCell>
+              <TableCell className="print:hidden">
                 <Select
                   value={t.busId ?? ""}
                   onValueChange={(v) => onReassign(t.tripNumber - 1, v)}
@@ -646,6 +986,8 @@ function ScheduleTable({
     </div>
   );
 }
+
+/* ── Timeline ────────────────────────────────────────────────────── */
 
 function Timeline({
   trips,
@@ -706,18 +1048,21 @@ function Timeline({
   );
 }
 
+/* ── Enhanced FlowChart ──────────────────────────────────────────── */
+
 function FlowChart() {
   const steps = [
-    { label: "Start of Day", desc: "Initialize all active buses, queue order fixed" },
-    { label: "Set Time Slot", desc: "Begin at operational start time" },
-    { label: "Determine Period", desc: "Check if slot falls in peak window" },
-    { label: "Pick Interval & Duration", desc: "Peak: 5m / 60m   |   Off-peak: 15m / 90m" },
-    { label: "Scan Queue From Front", desc: "Find first bus where next-available ≤ slot" },
-    { label: "Assign Trip", desc: "Update next-available, increment turns" },
-    { label: "Move Bus to Back", desc: "Preserve fairness via round-robin" },
-    { label: "Advance Slot", desc: "slot += interval" },
-    { label: "Check Stop Conditions", desc: "Stop when 44 turns done OR end of day" },
+    { label: "Start Day", desc: "Initialize all active buses and set queue order", color: "var(--primary)" },
+    { label: "Set Time Slot", desc: "Begin at operational start time (04:30)", color: "var(--primary)" },
+    { label: "Determine Period", desc: "Check if slot falls within peak windows", color: "var(--peak)" },
+    { label: "Set Interval & Duration", desc: "Peak: 5m / 60m | Off-peak: 15m / 90m", color: "var(--peak)" },
+    { label: "Scan Queue", desc: "Check buses from front of queue", color: "var(--primary)" },
+    { label: "Bus Available?", desc: "Is next-available ≤ departure time?", color: "var(--warning)", decision: true },
+    { label: "Assign Trip", desc: "Update next-available and increment turn count", color: "var(--success)" },
+    { label: "Move to Back", desc: "Move assigned bus to back of queue", color: "var(--success)" },
+    { label: "Check Limits", desc: "44 turns done OR operational hours ended?", color: "var(--destructive)", decision: true },
   ];
+
   return (
     <Card>
       <CardHeader>
@@ -726,26 +1071,110 @@ function FlowChart() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-3 md:grid-cols-3">
-          {steps.map((s, i) => (
-            <div
-              key={i}
-              className="relative rounded-xl border border-border bg-card p-4 shadow-sm"
-            >
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                  {i + 1}
+        {/* Connected visual flow */}
+        <div className="relative">
+          {/* SVG connector lines */}
+          <svg
+            className="absolute inset-0 w-full h-full pointer-events-none hidden md:block"
+            style={{ zIndex: 0 }}
+          >
+            {steps.map((_, i) => {
+              if (i >= steps.length - 1) return null;
+              const cols = 3;
+              const row1 = Math.floor(i / cols);
+              const col1 = i % cols;
+              const row2 = Math.floor((i + 1) / cols);
+              const col2 = (i + 1) % cols;
+
+              // Calculate positions as percentages
+              const x1Pct = (col1 + 0.5) / cols;
+              const x2Pct = (col2 + 0.5) / cols;
+
+              // Different cases: same row vs next row
+              if (row1 === row2) {
+                // Same row, horizontal connector
+                return (
+                  <line
+                    key={i}
+                    x1={`${x1Pct * 100}%`}
+                    y1={`${(row1 * 160) + 80}px`}
+                    x2={`${x2Pct * 100}%`}
+                    y2={`${(row2 * 160) + 80}px`}
+                    stroke="var(--primary)"
+                    strokeWidth="2"
+                    strokeDasharray="6 4"
+                    opacity="0.4"
+                  />
+                );
+              } else {
+                // Next row, vertical connector (right edge to left of next row)
+                return (
+                  <path
+                    key={i}
+                    d={`M ${x1Pct * 100}% ${(row1 * 160) + 130}
+                        L ${x1Pct * 100}% ${(row1 * 160) + 145}
+                        L ${x2Pct * 100}% ${(row2 * 160) + 35}
+                        L ${x2Pct * 100}% ${(row2 * 160) + 50}`}
+                    stroke="var(--primary)"
+                    strokeWidth="2"
+                    strokeDasharray="6 4"
+                    fill="none"
+                    opacity="0.4"
+                  />
+                );
+              }
+            })}
+          </svg>
+
+          <div className="relative grid gap-5 md:grid-cols-3" style={{ zIndex: 1 }}>
+            {steps.map((s, i) => (
+              <div
+                key={i}
+                className={`rounded-xl border-2 bg-card p-5 shadow-sm transition-all hover:shadow-md ${
+                  s.decision ? "border-dashed" : "border-solid"
+                }`}
+                style={{ borderColor: `color-mix(in oklab, ${s.color} 40%, transparent)` }}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow-sm"
+                    style={{ background: s.color }}
+                  >
+                    {i + 1}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold leading-tight">{s.label}</h3>
+                    {s.decision && (
+                      <Badge variant="outline" className="mt-1 text-[10px]">
+                        Decision
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-                <h3 className="font-semibold">{s.label}</h3>
+                <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
+                {i < steps.length - 1 && (
+                  <div className="mt-3 flex justify-end md:hidden">
+                    <ArrowRight className="h-4 w-4 text-muted-foreground animate-pulse" />
+                  </div>
+                )}
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">{s.desc}</p>
-              {i < steps.length - 1 && (
-                <ArrowRight className="absolute -right-3 top-1/2 hidden h-5 w-5 -translate-y-1/2 text-muted-foreground md:block" />
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-        <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+
+        {/* Loop-back indicator */}
+        <div className="mt-6 flex items-center gap-3 rounded-lg border-2 border-dashed border-primary/20 bg-primary/5 p-4">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary">
+            <ArrowRight className="h-4 w-4 rotate-180" />
+          </div>
+          <div className="text-sm text-muted-foreground">
+            <strong className="text-foreground">Loop back to step 2</strong> — advance slot by
+            interval and repeat until 44 turns completed or operational hours end.
+          </div>
+        </div>
+
+        {/* Fairness rule */}
+        <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
           <strong className="text-foreground">Fairness rule:</strong> The algorithm always
           respects queue turn order. It does <em>not</em> pick the globally earliest available
           bus — it picks the first bus in queue order whose next-available time has passed.
@@ -755,6 +1184,8 @@ function FlowChart() {
     </Card>
   );
 }
+
+/* ── Setup Panel ─────────────────────────────────────────────────── */
 
 function SetupPanel({
   config,
@@ -772,24 +1203,32 @@ function SetupPanel({
 
   const addBus = () => {
     const id = newId.trim();
-    if (!id) return;
-    if (buses.some((b) => b.id.toLowerCase() === id.toLowerCase())) return;
+    if (!id) {
+      toast.error("Bus ID required", { description: "Please enter a bus ID or registration number." });
+      return;
+    }
+    if (buses.some((b) => b.id.toLowerCase() === id.toLowerCase())) {
+      toast.error("Duplicate bus", { description: `Bus "${id}" already exists in the fleet.` });
+      return;
+    }
     setBuses([...buses, { id, active: true, driver: newDriver.trim() }]);
     setNewId("");
     setNewDriver("");
+    toast.success("Bus added", { description: `${id} added to the fleet.` });
   };
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle>Route & Schedule Configuration</CardTitle>
+          <CardTitle>Route &amp; Schedule Configuration</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4">
           <Field label="Route name">
             <Input
               value={config.routeName}
               onChange={(e) => setConfig({ ...config, routeName: e.target.value })}
+              id="config-route-name"
             />
           </Field>
           <div className="grid grid-cols-2 gap-3">
@@ -798,6 +1237,7 @@ function SetupPanel({
                 type="time"
                 value={config.startTime}
                 onChange={(e) => setConfig({ ...config, startTime: e.target.value })}
+                id="config-start-time"
               />
             </Field>
             <Field label="End time">
@@ -805,6 +1245,7 @@ function SetupPanel({
                 type="time"
                 value={config.endTime}
                 onChange={(e) => setConfig({ ...config, endTime: e.target.value })}
+                id="config-end-time"
               />
             </Field>
           </div>
@@ -843,6 +1284,7 @@ function SetupPanel({
                 onChange={(e) =>
                   setConfig({ ...config, peakIntervalMin: Number(e.target.value) || 1 })
                 }
+                id="config-peak-interval"
               />
             </Field>
             <Field label="Off-peak interval (min)">
@@ -853,6 +1295,7 @@ function SetupPanel({
                 onChange={(e) =>
                   setConfig({ ...config, offPeakIntervalMin: Number(e.target.value) || 1 })
                 }
+                id="config-offpeak-interval"
               />
             </Field>
             <Field label="Peak turn duration (min)">
@@ -863,6 +1306,7 @@ function SetupPanel({
                 onChange={(e) =>
                   setConfig({ ...config, peakTurnMin: Number(e.target.value) || 1 })
                 }
+                id="config-peak-turn"
               />
             </Field>
             <Field label="Off-peak turn duration (min)">
@@ -873,6 +1317,7 @@ function SetupPanel({
                 onChange={(e) =>
                   setConfig({ ...config, offPeakTurnMin: Number(e.target.value) || 1 })
                 }
+                id="config-offpeak-turn"
               />
             </Field>
             <Field label="Required daily turns">
@@ -883,6 +1328,7 @@ function SetupPanel({
                 onChange={(e) =>
                   setConfig({ ...config, requiredTurns: Number(e.target.value) || 1 })
                 }
+                id="config-required-turns"
               />
             </Field>
           </div>
@@ -902,13 +1348,15 @@ function SetupPanel({
               placeholder="Bus ID (e.g. B15)"
               value={newId}
               onChange={(e) => setNewId(e.target.value)}
+              id="add-bus-id"
             />
             <Input
               placeholder="Driver (optional)"
               value={newDriver}
               onChange={(e) => setNewDriver(e.target.value)}
+              id="add-bus-driver"
             />
-            <Button onClick={addBus}>
+            <Button onClick={addBus} id="add-bus-btn">
               <Plus className="mr-1 h-4 w-4" /> Add
             </Button>
           </div>
@@ -945,6 +1393,7 @@ function SetupPanel({
                           const copy = [...buses];
                           copy[i] = { ...b, active: v };
                           setBuses(copy);
+                          toast.info(`${b.id} ${v ? "activated" : "deactivated"}`);
                         }}
                       />
                     </TableCell>
@@ -952,7 +1401,10 @@ function SetupPanel({
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => setBuses(buses.filter((x) => x.id !== b.id))}
+                        onClick={() => {
+                          setBuses(buses.filter((x) => x.id !== b.id));
+                          toast.info(`${b.id} removed from fleet`);
+                        }}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>

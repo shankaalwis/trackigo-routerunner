@@ -187,3 +187,82 @@
   }
 }
 
+/* ── Print styles ───────────────────────────────────────────────── */
+
+@media print {
+  @page {
+    margin: 1cm;
+    size: A4 landscape;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 11px !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+
+  .print\:bg-white {
+    background: white !important;
+  }
+
+  .print\:border-gray-200 {
+    border-color: #e5e5e5 !important;
+  }
+
+  /* Force light colours for tables and cards */
+  table,
+  [class*="card"],
+  [class*="Card"] {
+    background: white !important;
+    color: black !important;
+    border-color: #d4d4d4 !important;
+  }
+
+  th {
+    background: #f5f5f5 !important;
+    color: black !important;
+    font-weight: 600;
+  }
+
+  td,
+  th {
+    padding: 4px 8px !important;
+    border-bottom: 1px solid #e5e5e5 !important;
+  }
+
+  /* Hide interactive elements in print */
+  button,
+  select,
+  input,
+  [role="tablist"] {
+    display: none !important;
+  }
+
+  /* Badges should be simple in print */
+  [class*="badge"],
+  [class*="Badge"] {
+    border: 1px solid #999 !important;
+    background: transparent !important;
+    color: black !important;
+    padding: 1px 6px !important;
+    font-size: 9px !important;
+  }
+
+  /* Avoid page breaks inside cards */
+  [class*="card"],
+  [class*="Card"],
+  table {
+    break-inside: avoid;
+  }
+
+  /* Show all content, no scrolling */
+  * {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+}
+
