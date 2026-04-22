@@ -558,7 +558,7 @@ export function Dashboard() {
       {/* ══ MAIN CONTENT ══ */}
       <div className="mx-auto max-w-[1400px] px-6 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-6 grid w-full grid-cols-3 md:grid-cols-6 print:hidden">
+          <TabsList className="mb-6 grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 h-auto gap-1 print:hidden">
             <TabsTrigger value="live">Live Map</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="buses">Buses &amp; Queue</TabsTrigger>
@@ -1293,7 +1293,7 @@ function SetupPanel({
               id="config-route-name"
             />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Start time">
               <Input
                 type="time"
@@ -1312,7 +1312,7 @@ function SetupPanel({
             </Field>
           </div>
           {config.peakWindows.map((w, i) => (
-            <div key={i} className="grid grid-cols-2 gap-3">
+            <div key={i} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label={`Peak ${i + 1} start`}>
                 <Input
                   type="time"
@@ -1337,7 +1337,7 @@ function SetupPanel({
               </Field>
             </div>
           ))}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Peak interval (min)">
               <Input
                 type="number"
