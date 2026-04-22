@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Bus, SchedulerConfig, ScheduleResult, Trip } from "@/lib/scheduler/types";
 import { DEFAULT_BUSES, DEFAULT_CONFIG } from "@/lib/scheduler/defaults";
 import { generateSchedule } from "@/lib/scheduler/engine";
+import { fetchBuses, fetchConfig, saveBus, saveConfig } from "@/lib/data-service";
 import { format12 } from "@/lib/scheduler/time";
 import { LiveMap } from "@/components/scheduler/LiveMap";
 import { Button } from "@/components/ui/button";
@@ -120,39 +122,83 @@ export function Dashboard() {
   const [currentDay, setCurrentDay] = useState(1);
   const [activeTab, setActiveTab] = useState("schedule");
 
+  // Fetch real data from Supabase instead of localStorage
+  const queryClient = useQueryClient();
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const configSuccess = await saveConfig(config);
+      if (!configSuccess) throw new Error("Failed to save config to Supabase");
+
+      const busResults = await Promise.all(buses.map((b) => saveBus(b)));
+      if (busResults.some((r) => !r)) throw new Error("Failed to save some buses to Supabase");
+
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["buses"] });
+      queryClient.invalidateQueries({ queryKey: ["config"] });
+      toast.success("Saved configuration and buses to Supabase");
+    },
+    onError: (err) => {
+      toast.error("Save failed", { description: err.message });
+    },
+  });
+
+  const { data: dbBuses, isLoading: busesLoading } = useQuery({
+    queryKey: ['buses'],
+    queryFn: fetchBuses,
+  });
+
+  const { data: dbConfig, isLoading: configLoading } = useQuery({
+    queryKey: ['config'],
+    queryFn: fetchConfig,
+  });
+
   // dark-mode class toggle
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
     localStorage.setItem("bus-scheduler-theme", dark ? "dark" : "light");
   }, [dark]);
 
-  // hydrate from persistence and generate Day 1 automatically
+  // hydrate from persistence and DB and generate Day 1 automatically
   useEffect(() => {
-    const p = load();
-    setConfig(p.config);
-    setBuses(p.buses);
-    if (p.days && p.days.length > 0) {
-      setDays(p.days);
-      setCurrentDay(p.days.length);
+    if (busesLoading || configLoading) return;
+
+    const activeBuses = (dbBuses && dbBuses.length > 0) ? dbBuses : DEFAULT_BUSES;
+    const activeConfig = dbConfig || DEFAULT_CONFIG;
+
+    setConfig(activeConfig);
+    setBuses(activeBuses);
+
+    const rawDays = localStorage.getItem('bus-scheduler-days');
+    if (rawDays) {
+      try {
+        const parsedDays = JSON.parse(rawDays);
+        setDays(parsedDays);
+        setCurrentDay(parsedDays.length);
+      } catch (e) {
+        console.error(e);
+      }
     } else {
       // Auto-generate Day 1 on first load
-      const day1Result = generateSchedule(p.config, p.buses);
+      const day1Result = generateSchedule(activeConfig, activeBuses);
       const day1: DaySchedule = {
         day: 1,
         result: day1Result,
-        initialQueue: p.buses.filter((b) => b.active).map((b) => b.id),
+        initialQueue: activeBuses.filter((b) => b.active).map((b) => b.id),
       };
       setDays([day1]);
       setCurrentDay(1);
     }
     setHydrated(true);
-  }, []);
+  }, [dbBuses, dbConfig, busesLoading, configLoading]);
 
   // persist on change
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(STORAGE, JSON.stringify({ config, buses, days }));
-  }, [config, buses, days, hydrated]);
+    localStorage.setItem('bus-scheduler-days', JSON.stringify(days));
+  }, [days, hydrated]);
 
   // Current day's schedule result (with overrides applied)
   const result: ScheduleResult = useMemo(() => {
@@ -771,6 +817,8 @@ export function Dashboard() {
               setConfig={setConfig}
               buses={buses}
               setBuses={setBuses}
+              onSave={() => saveMutation.mutate()}
+              isSaving={saveMutation.isPending}
             />
           </TabsContent>
         </Tabs>
@@ -1192,11 +1240,15 @@ function SetupPanel({
   setConfig,
   buses,
   setBuses,
+  onSave,
+  isSaving,
 }: {
   config: SchedulerConfig;
   setConfig: (c: SchedulerConfig) => void;
   buses: Bus[];
   setBuses: (b: Bus[]) => void;
+  onSave: () => void;
+  isSaving: boolean;
 }) {
   const [newId, setNewId] = useState("");
   const [newDriver, setNewDriver] = useState("");
@@ -1218,8 +1270,18 @@ function SetupPanel({
   };
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <Card>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between rounded-lg border border-border bg-card p-4">
+        <div>
+          <h3 className="font-semibold text-lg">Save Changes to Database</h3>
+          <p className="text-sm text-muted-foreground">Click save to persist your local setup to Supabase.</p>
+        </div>
+        <Button onClick={onSave} disabled={isSaving}>
+          {isSaving ? "Saving..." : "Save Configuration & Fleet"}
+        </Button>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
         <CardHeader>
           <CardTitle>Route &amp; Schedule Configuration</CardTitle>
         </CardHeader>
@@ -1416,6 +1478,7 @@ function SetupPanel({
           </div>
         </CardContent>
       </Card>
+    </div>
     </div>
   );
 }
