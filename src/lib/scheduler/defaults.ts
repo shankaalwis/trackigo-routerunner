@@ -15,7 +15,7 @@ export const DEFAULT_CONFIG: SchedulerConfig = {
   requiredTurns: 44,
 };
 
-export const DEFAULT_BUSES: Bus[] = Array.from({ length: 14 }, (_, i) => ({
+export const DEFAULT_BUSES: Bus[] = Array.from({ length: 10 }, (_, i) => ({
   id: `B${i + 1}`,
   active: true,
   driver: "",

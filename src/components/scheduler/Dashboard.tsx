@@ -66,37 +66,13 @@ import {
   Zap,
 } from "lucide-react";
 
-/* ── persistence ─────────────────────────────────────────────────── */
-
-const STORAGE = "bus-turn-scheduler-v1";
+/* ── types ───────────────────────────────────────────────────────── */
 
 type DaySchedule = {
   day: number;
   result: ScheduleResult;
   initialQueue: string[];  // queue order used to start this day
 };
-
-type Persisted = {
-  config: SchedulerConfig;
-  buses: Bus[];
-  days?: DaySchedule[];
-};
-
-function load(): Persisted {
-  if (typeof window === "undefined") return { config: DEFAULT_CONFIG, buses: DEFAULT_BUSES };
-  try {
-    const raw = localStorage.getItem(STORAGE);
-    if (!raw) return { config: DEFAULT_CONFIG, buses: DEFAULT_BUSES };
-    const p = JSON.parse(raw) as Persisted;
-    return {
-      config: { ...DEFAULT_CONFIG, ...p.config },
-      buses: p.buses ?? DEFAULT_BUSES,
-      days: p.days,
-    };
-  } catch {
-    return { config: DEFAULT_CONFIG, buses: DEFAULT_BUSES };
-  }
-}
 
 /* ── dark mode ───────────────────────────────────────────────────── */
 
@@ -171,33 +147,22 @@ export function Dashboard() {
     setConfig(activeConfig);
     setBuses(activeBuses);
 
-    const rawDays = localStorage.getItem('bus-scheduler-days');
-    if (rawDays) {
-      try {
-        const parsedDays = JSON.parse(rawDays);
-        setDays(parsedDays);
-        setCurrentDay(parsedDays.length);
-      } catch (e) {
-        console.error(e);
-      }
-    } else {
-      // Auto-generate Day 1 on first load
-      const day1Result = generateSchedule(activeConfig, activeBuses);
-      const day1: DaySchedule = {
-        day: 1,
-        result: day1Result,
-        initialQueue: activeBuses.filter((b) => b.active).map((b) => b.id),
-      };
-      setDays([day1]);
-      setCurrentDay(1);
-    }
+    // Always generate Day 1 on load
+    const day1Result = generateSchedule(activeConfig, activeBuses);
+    const day1: DaySchedule = {
+      day: 1,
+      result: day1Result,
+      initialQueue: activeBuses.filter((b) => b.active).map((b) => b.id),
+    };
+    setDays([day1]);
+    setCurrentDay(1);
     setHydrated(true);
   }, [dbBuses, dbConfig, busesLoading, configLoading]);
 
   // persist on change
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem('bus-scheduler-days', JSON.stringify(days));
+    // Removed saving days to localStorage so that a fresh schedule is generated next time.
   }, [days, hydrated]);
 
   // Current day's schedule result (with overrides applied)

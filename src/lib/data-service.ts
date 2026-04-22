@@ -8,8 +8,8 @@ import { DEFAULT_CONFIG } from './scheduler/defaults';
 
 export async function fetchBuses(): Promise<Bus[]> {
   // TODO: Create a 'buses' table in Supabase with columns matching the Bus type
-  const { data, error } = await supabase
-    .from('buses' as any) // Using 'as any' temporarily until types are re-generated with the table
+  const { data, error } = await (supabase as any)
+    .from('buses')
     .select('*')
     .order('id', { ascending: true });
 
@@ -22,8 +22,8 @@ export async function fetchBuses(): Promise<Bus[]> {
 }
 
 export async function saveBus(bus: Bus): Promise<boolean> {
-  const { error } = await supabase
-    .from('buses' as any)
+  const { error } = await (supabase as any)
+    .from('buses')
     .upsert(bus);
 
   if (error) {
@@ -39,8 +39,8 @@ export async function saveBus(bus: Bus): Promise<boolean> {
 
 export async function fetchConfig(): Promise<SchedulerConfig> {
   // TODO: Create a 'config' table in Supabase (perhaps a single row table)
-  const { data, error } = await supabase
-    .from('config' as any)
+  const { data, error } = await (supabase as any)
+    .from('config')
     .select('*')
     .limit(1)
     .single();
@@ -55,8 +55,8 @@ export async function fetchConfig(): Promise<SchedulerConfig> {
 }
 
 export async function saveConfig(config: SchedulerConfig): Promise<boolean> {
-  const { error } = await supabase
-    .from('config' as any)
+  const { error } = await (supabase as any)
+    .from('config')
     .upsert({ id: 1, ...config }); // Assuming a single row with id = 1
 
   if (error) {
