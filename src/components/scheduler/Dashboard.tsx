@@ -72,8 +72,8 @@ import {
   Zap,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-
-/* ── types ───────────────────────────────────────────────────────── */
+import { useIsMobile } from "@/hooks/use-mobile";
+import { ThemeProvider } from "@/hooks/use-theme";
 
 type DaySchedule = {
   day: number;
@@ -85,6 +85,7 @@ type DaySchedule = {
 /* ── Dashboard ───────────────────────────────────────────────────── */
 
 export function Dashboard() {
+  const isMobile = useIsMobile();
   const [config, setConfig] = useState<SchedulerConfig>(DEFAULT_CONFIG);
   const [buses, setBuses] = useState<Bus[]>(DEFAULT_BUSES);
   const [hydrated, setHydrated] = useState(false);
@@ -436,33 +437,37 @@ export function Dashboard() {
     <div className="min-h-screen bg-background print:bg-white">
       {/* ══ HEADER ══ */}
       <div className="bg-grid border-b border-border print:bg-white print:border-gray-200">
-        <div className="mx-auto max-w-[1400px] px-6 py-8">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg">
+        <div className="mx-auto max-w-[1400px] px-6 py-6 md:py-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 md:gap-4">
+            <div className="flex flex-col md:flex-row items-center text-center md:text-left gap-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shrink-0">
                 <BusIcon className="h-9 w-9" />
               </div>
               <div>
-                <h1 className="text-3xl font-semibold font-sans tracking-tight leading-none">Route Runner</h1>
-                <p className="text-xs font-bold text-primary/70 uppercase tracking-[0.2em] mt-1">by TrackiGo</p>
-                <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-                  <Route className="h-4 w-4" />
-                  <span className="font-medium">{config.routeName}</span>
-                  <span>•</span>
-                  <Clock className="h-4 w-4" />
-                  <span>
-                    {config.startTime} → {config.endTime === "00:00" ? "24:00" : config.endTime}
-                  </span>
+                <h1 className="text-2xl md:text-3xl font-semibold font-sans tracking-tight leading-none">Route Runner</h1>
+                <p className="text-[10px] md:text-xs font-bold text-primary/70 uppercase tracking-[0.2em] mt-1">by TrackiGo</p>
+                <div className="mt-2 flex flex-wrap items-center justify-center md:justify-start gap-2 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <Route className="h-4 w-4" />
+                    <span className="font-medium">{config.routeName}</span>
+                  </div>
+                  <span className="hidden md:inline text-white/20">•</span>
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="h-4 w-4" />
+                    <span>
+                      {config.startTime} — {config.endTime === "00:00" ? "24:00" : config.endTime}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Big Clock Display - Aligned with page content */}
-            <div className="flex flex-col items-end text-right">
-              <div className="text-3xl font-black tracking-tighter text-primary md:text-4xl lg:text-5xl">
+            {/* Big Clock Display */}
+            <div className="flex flex-col items-center md:items-end text-center md:text-right bg-primary/5 md:bg-transparent p-4 md:p-0 rounded-2xl w-full md:w-auto border border-primary/10 md:border-none">
+              <div className="text-4xl md:text-4xl lg:text-5xl font-black tracking-tighter text-primary">
                 {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </div>
-              <div className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+              <div className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mt-1">
                 {now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
               </div>
             </div>
@@ -471,12 +476,12 @@ export function Dashboard() {
           </div>
 
           {/* ── Day selector strip ── */}
-          <div className="mt-4 flex flex-wrap items-center gap-3 print:hidden">
-            <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
+          <div className="mt-6 flex flex-wrap items-center justify-center md:justify-start gap-3 print:hidden bg-muted/30 p-3 rounded-2xl border border-border">
+            <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1 shadow-sm">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-8 w-8 rounded-lg"
                 disabled={currentDay <= 1}
                 onClick={() => { setCurrentDay((d) => d - 1); setOverrides({}); }}
               >
@@ -484,12 +489,12 @@ export function Dashboard() {
               </Button>
               <div className="flex items-center gap-1.5 px-3">
                 <Calendar className="h-4 w-4 text-primary" />
-                <span className="font-semibold">{currentDayName}</span>
+                <span className="font-bold text-sm">{currentDayName}</span>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-8 w-8 rounded-lg"
                 disabled={currentDay >= days.length}
                 onClick={() => { setCurrentDay((d) => d + 1); setOverrides({}); }}
               >
@@ -501,23 +506,24 @@ export function Dashboard() {
               size="sm"
               onClick={handleNextDay}
               id="next-day-btn"
+              className="rounded-xl font-semibold border-primary/20 hover:bg-primary/5"
             >
               <Plus className="mr-1 h-4 w-4" /> Next Day
             </Button>
-            {startingQueue && currentDay > 1 && (
-              <Badge variant="secondary" className="text-xs">
-                Queue from Day {currentDay - 1} → starts with {startingQueue[0]}
+            {startingQueue && currentDay > 1 && !isMobile && (
+              <Badge variant="secondary" className="text-[10px] uppercase tracking-wider font-bold bg-primary/5 text-primary border-primary/10">
+                Queue carried from Day {currentDay - 1}
               </Badge>
             )}
-            <div className="ml-auto flex items-center gap-1">
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-full">
               {days.map((d) => (
                 <button
                   key={d.day}
                   onClick={() => { setCurrentDay(d.day); setOverrides({}); }}
-                  className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-medium transition-colors ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold transition-all shadow-sm ${
                     d.day === currentDay
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-accent"
+                      ? "bg-primary text-primary-foreground scale-110"
+                      : "bg-card text-muted-foreground hover:bg-accent border border-border"
                   }`}
                 >
                   {d.day}
@@ -648,14 +654,14 @@ export function Dashboard() {
       {/* ══ MAIN CONTENT ══ */}
       <div className="mx-auto max-w-[1400px] px-6 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-6 grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 h-auto gap-1 print:hidden">
-            <TabsTrigger value="schedule">Schedule</TabsTrigger>
-            <TabsTrigger value="live">Live Map</TabsTrigger>
-            <TabsTrigger value="buses">Buses &amp; Queue</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="logic">Logic Flow</TabsTrigger>
-            <TabsTrigger value="fleet">Fleet</TabsTrigger>
-            <TabsTrigger value="setup">Setup</TabsTrigger>
+          <TabsList className="mb-6 flex w-full h-auto gap-1 overflow-x-auto overflow-y-hidden p-1 bg-muted/50 rounded-xl no-scrollbar print:hidden">
+            <TabsTrigger value="schedule" className="shrink-0 min-w-[100px]">Schedule</TabsTrigger>
+            <TabsTrigger value="live" className="shrink-0 min-w-[100px]">Live Map</TabsTrigger>
+            <TabsTrigger value="buses" className="shrink-0 min-w-[100px]">Buses &amp; Queue</TabsTrigger>
+            <TabsTrigger value="analytics" className="shrink-0 min-w-[100px]">Analytics</TabsTrigger>
+            <TabsTrigger value="logic" className="shrink-0 min-w-[100px]">Logic Flow</TabsTrigger>
+            <TabsTrigger value="fleet" className="shrink-0 min-w-[100px]">Fleet</TabsTrigger>
+            <TabsTrigger value="setup" className="shrink-0 min-w-[100px]">Setup</TabsTrigger>
           </TabsList>
 
           <TabsContent value="live">
@@ -721,7 +727,7 @@ export function Dashboard() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-2 md:p-6">
                 <ScheduleTable
                   trips={filteredTrips}
                   buses={buses}
@@ -1029,6 +1035,99 @@ function ScheduleTable({
   onSort: (key: SortKey) => void;
   onReassign: (idx: number, newBus: string) => void;
 }) {
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return (
+      <div className="flex flex-col gap-4">
+        {trips.map((t) => {
+          const isOverridden = overrides[t.tripNumber - 1] !== undefined;
+          return (
+            <div
+              key={t.tripNumber}
+              className={`rounded-2xl border bg-card p-4 shadow-sm ${
+                t.period === "peak" ? "border-peak/20 bg-peak/5" : "border-border"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-muted-foreground">#{t.tripNumber}</span>
+                  <span className="text-lg font-bold">{t.departureLabel}</span>
+                </div>
+                {t.period === "peak" ? (
+                  <Badge className="border-peak/40 bg-peak/15 text-peak-foreground">
+                    <Zap className="mr-1 h-3 w-3" /> Peak
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="border-offpeak/30 bg-offpeak/15 text-offpeak-foreground">
+                    Off-peak
+                  </Badge>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase text-muted-foreground font-semibold">Assigned Bus</p>
+                  <p className="font-bold">{t.busId || "—"}</p>
+                </div>
+                <div className="space-y-1 text-right">
+                  <p className="text-[10px] uppercase text-muted-foreground font-semibold">Status</p>
+                  {t.missed ? (
+                    <Badge variant="destructive" className="h-5">Missed</Badge>
+                  ) : (
+                    <Badge className="h-5 bg-success/20 text-success-foreground">Assigned</Badge>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase text-muted-foreground font-semibold">Next Available</p>
+                  <p className="font-mono text-sm">{t.nextAvailableLabel || "—"}</p>
+                </div>
+                <div className="space-y-1 text-right">
+                  <p className="text-[10px] uppercase text-muted-foreground font-semibold">Bus Turns</p>
+                  <p className="text-sm">{t.busTotalTurns ?? "—"}</p>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-border flex items-center justify-between">
+                <p className="text-xs text-muted-foreground italic">Manual Override</p>
+                <Select
+                  value={overrides[t.tripNumber - 1] ?? ""}
+                  onValueChange={(v) => onReassign(t.tripNumber - 1, v)}
+                >
+                  <SelectTrigger className={`h-9 w-32 px-3 text-xs rounded-xl ${isOverridden ? "border-primary bg-primary/5 text-primary font-bold" : ""}`}>
+                    <SelectValue placeholder="Override" />
+                    {isOverridden ? (
+                      <span className="ml-auto">{overrides[t.tripNumber - 1]}</span>
+                    ) : (
+                      <Edit className="ml-auto h-3 w-3 opacity-50" />
+                    )}
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__clear__" className="text-muted-foreground italic">
+                      Default (Auto)
+                    </SelectItem>
+                    {buses
+                      .filter((b) => b.active)
+                      .map((b) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.id}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          );
+        })}
+        {trips.length === 0 && (
+          <div className="py-12 text-center text-muted-foreground">
+            No trips match the current filters.
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="overflow-x-auto rounded-lg border border-border">
       <Table>
