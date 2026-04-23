@@ -22,7 +22,6 @@ export type SchedulerConfig = {
   offPeakIntervalMin: number;
   peakTurnMin: number;
   offPeakTurnMin: number;
-  requiredTurns: number;
 };
 
 export type Trip = {

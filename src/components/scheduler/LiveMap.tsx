@@ -49,7 +49,7 @@ export function LiveMap({ result, buses, config }: Props) {
 
   const [now, setNow] = useState(startMin);
   const [playing, setPlaying] = useState(true);
-  const [speed, setSpeed] = useState(60); // simulated minutes per real second
+  const [speed, setSpeed] = useState(0.06); // simulated minutes per real second (0.1% of 1x)
 
   // Auto-advance simulation
   useEffect(() => {
@@ -327,6 +327,7 @@ export function LiveMap({ result, buses, config }: Props) {
                 onChange={(e) => setSpeed(Number(e.target.value))}
                 className="h-8 rounded-md border border-border bg-background px-2 text-xs"
               >
+                <option value={0.06}>0.1%</option>
                 <option value={15}>0.25×</option>
                 <option value={30}>0.5×</option>
                 <option value={60}>1×</option>

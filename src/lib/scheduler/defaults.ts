@@ -12,7 +12,6 @@ export const DEFAULT_CONFIG: SchedulerConfig = {
   offPeakIntervalMin: 15,
   peakTurnMin: 60,
   offPeakTurnMin: 90,
-  requiredTurns: 44,
 };
 
 export const DEFAULT_BUSES: Bus[] = Array.from({ length: 10 }, (_, i) => ({
