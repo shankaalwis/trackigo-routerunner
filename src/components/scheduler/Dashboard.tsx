@@ -57,8 +57,10 @@ import {
   Play,
   Plus,
   Route,
+  Settings,
   Snowflake,
   Sun,
+  Timer,
   Trash2,
   TrendingUp,
   Users,
@@ -517,6 +519,83 @@ export function Dashboard() {
               value={busiest ? `${busiest.id} (${busiest.totalTurns})` : "—"}
             />
           </div>
+
+          {/* ── Configuration Summary ── */}
+          <div className="mt-8 rounded-xl border border-primary/10 bg-primary/5 p-6 backdrop-blur-sm print:hidden">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Settings className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold">Route & Schedule Configuration</h2>
+              </div>
+              <Badge variant="outline" className="bg-background/50">
+                Target: {config.requiredTurns} turns
+              </Badge>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Clock className="h-4 w-4" /> Operation Hours
+                </div>
+                <div className="rounded-lg bg-background/50 p-3 border border-border/50">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Start</span>
+                    <span className="font-bold">{config.startTime}</span>
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-xs text-muted-foreground">End</span>
+                    <span className="font-bold">{config.endTime === "00:00" ? "24:00" : config.endTime}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Timer className="h-4 w-4" /> Dispatch Intervals
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-background/50 p-2 border border-border/50">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Peak</div>
+                    <div className="font-bold">{config.peakIntervalMin}m</div>
+                  </div>
+                  <div className="rounded-lg bg-background/50 p-2 border border-border/50">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Off-Peak</div>
+                    <div className="font-bold">{config.offPeakIntervalMin}m</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Workflow className="h-4 w-4" /> Turn Durations
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-background/50 p-2 border border-border/50">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Peak</div>
+                    <div className="font-bold">{config.peakTurnMin}m</div>
+                  </div>
+                  <div className="rounded-lg bg-background/50 p-2 border border-border/50">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Off-Peak</div>
+                    <div className="font-bold">{config.offPeakTurnMin}m</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="lg:col-span-2 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Zap className="h-4 w-4 text-amber-500" /> Peak Windows
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {config.peakWindows.map((pw, i) => (
+                    <div key={i} className="flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 border border-amber-500/20">
+                      <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                        {pw.start} — {pw.end}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -524,8 +603,8 @@ export function Dashboard() {
       <div className="mx-auto max-w-[1400px] px-6 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-6 grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 h-auto gap-1 print:hidden">
-            <TabsTrigger value="live">Live Map</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
+            <TabsTrigger value="live">Live Map</TabsTrigger>
             <TabsTrigger value="buses">Buses &amp; Queue</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="logic">Logic Flow</TabsTrigger>

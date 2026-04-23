@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Bus, ScheduleResult, SchedulerConfig } from "@/lib/scheduler/types";
 import { format12 } from "@/lib/scheduler/time";
-import { MapPin, Pause, Play, RotateCcw, Bus as BusIcon, Gauge } from "lucide-react";
+import { MapPin, Pause, Play, RotateCcw, Bus as BusIcon, Gauge, Clock } from "lucide-react";
 
 type Props = {
   result: ScheduleResult;
@@ -24,6 +24,23 @@ type RunningBus = {
 function parseHM(s: string): number {
   const [h, m] = s.split(":").map(Number);
   return h * 60 + m;
+}
+
+function getUShapePos(t: number) {
+  const sLen = 0.35;
+  const cLen = 0.3;
+  if (t <= sLen) {
+    const p = t / sLen;
+    return { x: 150 + p * 550, y: 80 };
+  } else if (t <= sLen + cLen) {
+    const p = (t - sLen) / cLen;
+    const x = (1-p)**3 * 700 + 3*(1-p)**2 * p * 950 + 3*(1-p) * p**2 * 950 + p**3 * 700;
+    const y = (1-p)**3 * 80 + 3*(1-p)**2 * p * 80 + 3*(1-p) * p**2 * 320 + p**3 * 320;
+    return { x, y };
+  } else {
+    const p = (t - (sLen + cLen)) / sLen;
+    return { x: 700 - p * 550, y: 320 };
+  }
 }
 
 export function LiveMap({ result, buses, config }: Props) {
@@ -107,8 +124,148 @@ export function LiveMap({ result, buses, config }: Props) {
     });
   }, [running]);
 
+  // Real-time tracking
+  const [wallClock, setWallClock] = useState(() => {
+    const d = new Date();
+    return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
+  });
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const d = new Date();
+      setWallClock(d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60);
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const realtimeBuses = useMemo(() => {
+    const map = new Map<string, RunningBus>();
+    for (const t of assignedTrips) {
+      const arrival = t.departureMin + t.tripDurationMin;
+      if (wallClock >= t.departureMin && wallClock < arrival && t.busId) {
+        const progress = Math.min(1, Math.max(0, (wallClock - t.departureMin) / t.tripDurationMin));
+        map.set(t.busId, {
+          busId: t.busId,
+          progress,
+          tripNumber: t.tripNumber,
+          departureMin: t.departureMin,
+          arrivalMin: arrival,
+        });
+      }
+    }
+    return Array.from(map.values());
+  }, [assignedTrips, wallClock]);
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* ── REALTIME LOCATION SECTION ── */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="flex items-center gap-2 text-xl">
+            <Clock className="h-5 w-5 text-primary animate-pulse" />
+            Realtime Fleet Location
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-success animate-ping" />
+            <span className="text-sm font-medium text-success">Live Now</span>
+            <span className="text-xs text-muted-foreground ml-2 font-mono">
+              {new Date().toLocaleTimeString()}
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="relative h-[400px] w-full rounded-xl border border-primary/10 bg-background/50 p-4 shadow-inner">
+            <div className="absolute left-6 top-1/2 -translate-y-[120px] text-xs">
+              <div className="font-bold text-primary">Origin</div>
+              <div className="text-muted-foreground">Kaduwela Terminal</div>
+            </div>
+            <div className="absolute left-6 top-1/2 translate-y-[100px] text-xs">
+              <div className="font-bold text-primary">Destination</div>
+              <div className="text-muted-foreground">Colombo Fort</div>
+            </div>
+
+            <svg
+              viewBox="0 0 1000 400"
+              className="absolute inset-0 h-full w-full"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              {/* Rotated U Path Shadow */}
+              <path
+                d="M 150 80 L 700 80 C 950 80, 950 320, 700 320 L 150 320"
+                stroke="var(--primary)"
+                strokeOpacity="0.05"
+                strokeWidth="32"
+                fill="none"
+                strokeLinecap="round"
+              />
+              {/* Rotated U Path Road */}
+              <path
+                d="M 150 80 L 700 80 C 950 80, 950 320, 700 320 L 150 320"
+                stroke="var(--primary)"
+                strokeOpacity="0.1"
+                strokeWidth="20"
+                fill="none"
+                strokeLinecap="round"
+              />
+              {/* Dashed Center Line */}
+              <path
+                d="M 150 80 L 700 80 C 950 80, 950 320, 700 320 L 150 320"
+                stroke="var(--primary)"
+                strokeOpacity="0.3"
+                strokeWidth="2"
+                strokeDasharray="12 12"
+                fill="none"
+              />
+              
+              {/* Path Endpoints */}
+              <circle cx="150" cy="80" r="10" className="fill-primary" />
+              <circle cx="150" cy="320" r="10" className="fill-primary" />
+
+              {/* Buses on U-Shape */}
+              {realtimeBuses.map((r) => {
+                const pos = getUShapePos(r.progress);
+                return (
+                  <g key={r.busId} className="transition-all duration-1000 ease-linear">
+                    <circle
+                      cx={pos.x}
+                      cy={pos.y}
+                      r="16"
+                      className="fill-background stroke-success stroke-2"
+                    />
+                    <foreignObject x={pos.x - 40} y={pos.y - 45} width="80" height="30">
+                      <div className="flex justify-center">
+                        <Badge className="bg-success text-[10px] font-bold shadow-sm whitespace-nowrap">
+                          <BusIcon className="mr-1 h-3 w-3" />
+                          {r.busId}
+                        </Badge>
+                      </div>
+                    </foreignObject>
+                    <text
+                      x={pos.x}
+                      y={pos.y + 4}
+                      textAnchor="middle"
+                      className="text-[10px] font-bold fill-success-foreground"
+                      style={{ fontSize: '8px' }}
+                    >
+                      {Math.round(r.progress * 100)}%
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+            
+            {realtimeBuses.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/20 backdrop-blur-[1px]">
+                <div className="text-center p-6 rounded-lg bg-card border border-border shadow-lg">
+                  <Clock className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                  <p className="text-sm font-medium">No buses currently active</p>
+                  <p className="text-xs text-muted-foreground">Fleet is currently at terminals or waiting</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
       {/* Top control bar */}
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-4 py-4">
@@ -190,26 +347,26 @@ export function LiveMap({ result, buses, config }: Props) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="relative h-[360px] overflow-hidden rounded-xl border border-border bg-gradient-to-b from-muted/30 to-muted/10 p-6">
+            <div className="relative h-[400px] overflow-hidden rounded-xl border border-border bg-gradient-to-b from-muted/30 to-muted/10 p-6">
               {/* Endpoint labels */}
-              <div className="absolute left-6 top-6 text-xs">
+              <div className="absolute left-6 top-1/2 -translate-y-[120px] text-xs">
                 <div className="font-semibold">Kaduwela</div>
                 <div className="text-muted-foreground">Origin</div>
               </div>
-              <div className="absolute right-6 top-6 text-right text-xs">
+              <div className="absolute left-6 top-1/2 translate-y-[100px] text-xs">
                 <div className="font-semibold">Colombo</div>
                 <div className="text-muted-foreground">Destination</div>
               </div>
 
               {/* SVG Route */}
               <svg
-                viewBox="0 0 1000 200"
-                preserveAspectRatio="none"
-                className="absolute inset-x-6 top-1/2 h-32 w-[calc(100%-3rem)] -translate-y-1/2"
+                viewBox="0 0 1000 400"
+                className="absolute inset-0 h-full w-full"
+                preserveAspectRatio="xMidYMid meet"
               >
                 {/* Road shadow */}
                 <path
-                  d="M 20 100 Q 250 30, 500 100 T 980 100"
+                  d="M 150 80 L 700 80 C 950 80, 950 320, 700 320 L 150 320"
                   stroke="var(--border)"
                   strokeWidth="22"
                   fill="none"
@@ -217,7 +374,7 @@ export function LiveMap({ result, buses, config }: Props) {
                 />
                 {/* Road */}
                 <path
-                  d="M 20 100 Q 250 30, 500 100 T 980 100"
+                  d="M 150 80 L 700 80 C 950 80, 950 320, 700 320 L 150 320"
                   stroke="var(--primary)"
                   strokeOpacity="0.18"
                   strokeWidth="16"
@@ -226,7 +383,7 @@ export function LiveMap({ result, buses, config }: Props) {
                 />
                 {/* Center dashed line */}
                 <path
-                  d="M 20 100 Q 250 30, 500 100 T 980 100"
+                  d="M 150 80 L 700 80 C 950 80, 950 320, 700 320 L 150 320"
                   stroke="var(--primary)"
                   strokeOpacity="0.55"
                   strokeWidth="2"
@@ -234,31 +391,28 @@ export function LiveMap({ result, buses, config }: Props) {
                   fill="none"
                 />
                 {/* Endpoints */}
-                <circle cx="20" cy="100" r="9" fill="var(--primary)" />
-                <circle cx="980" cy="100" r="9" fill="var(--primary)" />
+                <circle cx="150" cy="80" r="9" fill="var(--primary)" />
+                <circle cx="150" cy="320" r="9" fill="var(--primary)" />
               </svg>
 
               {/* Bus markers */}
-              <div className="absolute inset-x-6 top-1/2 h-32 -translate-y-1/2">
+              <div className="absolute inset-0 h-full w-full">
                 {positioned.length === 0 && (
                   <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                     No buses currently on route at {format12(Math.floor(now))}
                   </div>
                 )}
                 {positioned.map((r) => {
-                  // Approximate y on the curved path: y = 100 + sin-ish dip
-                  // Path goes high in middle (~y=65), endpoints y=100. Use parabola.
-                  const x = r.progress; // 0..1
-                  const yCurve = 100 - 35 * 4 * x * (1 - x); // peak at x=0.5 → y=65
-                  const leftPct = x * 100;
-                  const topPx = (yCurve / 200) * 128 + r.lane * 28 - 18;
+                  const pos = getUShapePos(r.progress);
+                  // Add small vertical offset for lanes in the straight sections
+                  const offset = r.lane * 15;
                   return (
                     <div
                       key={r.busId}
-                      className="absolute -translate-x-1/2 transition-all duration-150"
+                      className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-150"
                       style={{
-                        left: `${leftPct}%`,
-                        top: `${topPx}px`,
+                        left: `${(pos.x / 1000) * 100}%`,
+                        top: `${(pos.y / 400) * 100 + (r.progress < 0.35 || r.progress > 0.65 ? offset : 0)}%`,
                       }}
                     >
                       <div className="flex flex-col items-center gap-1">
