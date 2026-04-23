@@ -80,15 +80,6 @@ type DaySchedule = {
   initialQueue: string[];  // queue order used to start this day
 };
 
-/* ── dark mode ───────────────────────────────────────────────────── */
-
-function getInitialDark(): boolean {
-  if (typeof window === "undefined") return false;
-  const saved = localStorage.getItem("bus-scheduler-theme");
-  if (saved === "dark") return true;
-  if (saved === "light") return false;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
-}
 
 /* ── Dashboard ───────────────────────────────────────────────────── */
 
@@ -97,7 +88,6 @@ export function Dashboard() {
   const [buses, setBuses] = useState<Bus[]>(DEFAULT_BUSES);
   const [hydrated, setHydrated] = useState(false);
   const [overrides, setOverrides] = useState<Record<number, string>>({});
-  const [dark, setDark] = useState(getInitialDark);
 
   /* ── multi-day state ─── */
   const [days, setDays] = useState<DaySchedule[]>([]);
@@ -154,11 +144,6 @@ export function Dashboard() {
     queryFn: fetchConfig,
   });
 
-  // dark-mode class toggle
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-    localStorage.setItem("bus-scheduler-theme", dark ? "dark" : "light");
-  }, [dark]);
 
   // hydrate from persistence and DB and generate Day 1 automatically
   useEffect(() => {
@@ -939,19 +924,6 @@ export function Dashboard() {
         </Tabs>
       </div>
 
-      {/* Floating Dark Mode Toggle */}
-      <div className="fixed bottom-6 right-6 z-50 print:hidden">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setDark((d) => !d)}
-          className="h-12 w-12 rounded-full bg-background shadow-xl hover:scale-110 transition-transform border-primary/20"
-          aria-label="Toggle dark mode"
-          id="dark-mode-toggle-floating"
-        >
-          {dark ? <Sun className="h-6 w-6 text-amber-500" /> : <Moon className="h-6 w-6 text-primary" />}
-        </Button>
-      </div>
     </div>
   );
 }

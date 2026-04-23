@@ -1,5 +1,8 @@
 import { Outlet, Link, createRootRoute } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider } from "@/hooks/use-auth";
+import { ThemeProvider } from "@/hooks/use-theme";
+import { ProfileButton } from "@/components/profile-button";
 
 function NotFoundComponent() {
   return (
@@ -30,9 +33,14 @@ export const Route = createRootRoute({
 
 function RootComponent() {
   return (
-    <>
-      <Outlet />
-      <Toaster richColors position="top-right" />
-    </>
+    <ThemeProvider>
+      <AuthProvider>
+        <div className="relative min-h-screen">
+          <Outlet />
+          <ProfileButton />
+          <Toaster richColors position="top-right" />
+        </div>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
