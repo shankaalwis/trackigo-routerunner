@@ -53,6 +53,7 @@ import {
   ChevronUp,
   Clock,
   Download,
+  Edit,
   Flame,
   Moon,
   Play,
@@ -724,13 +725,25 @@ export function Dashboard() {
                 <ScheduleTable
                   trips={filteredTrips}
                   buses={buses}
+                  overrides={overrides}
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={handleSort}
                   onReassign={(tripIdx, newBus) => {
-                    setOverrides((o) => ({ ...o, [tripIdx]: newBus }));
-                    toast.info("Trip reassigned", {
-                      description: `Trip #${tripIdx + 1} reassigned to ${newBus}.`,
+                    setOverrides((o) => {
+                      const newOverrides = { ...o };
+                      if (newBus === "__clear__") {
+                        delete newOverrides[tripIdx];
+                        toast.info("Override cleared", {
+                          description: `Trip #${tripIdx + 1} reverted to auto-schedule.`,
+                        });
+                      } else {
+                        newOverrides[tripIdx] = newBus;
+                        toast.info("Trip reassigned", {
+                          description: `Trip #${tripIdx + 1} manually assigned to ${newBus}.`,
+                        });
+                      }
+                      return newOverrides;
                     });
                   }}
                 />
@@ -1002,6 +1015,7 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
 function ScheduleTable({
   trips,
   buses,
+  overrides,
   sortKey,
   sortDir,
   onSort,
@@ -1009,6 +1023,7 @@ function ScheduleTable({
 }: {
   trips: Trip[];
   buses: Bus[];
+  overrides: Record<number, string>;
   sortKey: SortKey;
   sortDir: "asc" | "desc";
   onSort: (key: SortKey) => void;
@@ -1057,75 +1072,85 @@ function ScheduleTable({
               Bus Turns <SortIcon col="busTotalTurns" sortKey={sortKey} sortDir={sortDir} />
             </TableHead>
             <TableHead>Status</TableHead>
-            <TableHead className="print:hidden">Override</TableHead>
+            <TableHead className="print:hidden text-center">Override</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {trips.map((t) => (
-            <TableRow
-              key={t.tripNumber}
-              className={t.period === "peak" ? "bg-peak/5" : ""}
-            >
-              <TableCell className="font-mono text-xs text-muted-foreground">
-                {t.tripNumber}
-              </TableCell>
-              <TableCell className="font-mono font-medium">{t.departureLabel}</TableCell>
-              <TableCell>
-                {t.period === "peak" ? (
-                  <Badge className="border-peak/40 bg-peak/15 text-peak-foreground hover:bg-peak/20">
-                    <Zap className="mr-1 h-3 w-3" /> Peak
-                  </Badge>
-                ) : (
-                  <Badge
-                    variant="secondary"
-                    className="border-offpeak/30 bg-offpeak/15 text-offpeak-foreground"
+          {trips.map((t) => {
+            const isOverridden = overrides[t.tripNumber - 1] !== undefined;
+            return (
+              <TableRow
+                key={t.tripNumber}
+                className={t.period === "peak" ? "bg-peak/5" : ""}
+              >
+                <TableCell className="font-mono text-xs text-muted-foreground">
+                  {t.tripNumber}
+                </TableCell>
+                <TableCell className="font-mono font-medium">{t.departureLabel}</TableCell>
+                <TableCell>
+                  {t.period === "peak" ? (
+                    <Badge className="border-peak/40 bg-peak/15 text-peak-foreground hover:bg-peak/20">
+                      <Zap className="mr-1 h-3 w-3" /> Peak
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="secondary"
+                      className="border-offpeak/30 bg-offpeak/15 text-offpeak-foreground"
+                    >
+                      Off-peak
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {t.busId ? (
+                    <span className="font-semibold">{t.busId}</span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-sm">{t.tripDurationMin}m</TableCell>
+                <TableCell className="font-mono text-sm">
+                  {t.nextAvailableLabel ?? "—"}
+                </TableCell>
+                <TableCell>{t.busTotalTurns ?? "—"}</TableCell>
+                <TableCell>
+                  {t.missed ? (
+                    <Badge variant="destructive">Missed</Badge>
+                  ) : (
+                    <Badge className="bg-success/20 text-success-foreground hover:bg-success/30">
+                      Assigned
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell className="print:hidden text-center">
+                  <Select
+                    value={overrides[t.tripNumber - 1] ?? ""}
+                    onValueChange={(v) => onReassign(t.tripNumber - 1, v)}
                   >
-                    Off-peak
-                  </Badge>
-                )}
-              </TableCell>
-              <TableCell>
-                {t.busId ? (
-                  <span className="font-semibold">{t.busId}</span>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </TableCell>
-              <TableCell className="text-sm">{t.tripDurationMin}m</TableCell>
-              <TableCell className="font-mono text-sm">
-                {t.nextAvailableLabel ?? "—"}
-              </TableCell>
-              <TableCell>{t.busTotalTurns ?? "—"}</TableCell>
-              <TableCell>
-                {t.missed ? (
-                  <Badge variant="destructive">Missed</Badge>
-                ) : (
-                  <Badge className="bg-success/20 text-success-foreground hover:bg-success/30">
-                    Assigned
-                  </Badge>
-                )}
-              </TableCell>
-              <TableCell className="print:hidden">
-                <Select
-                  value={t.busId ?? ""}
-                  onValueChange={(v) => onReassign(t.tripNumber - 1, v)}
-                >
-                  <SelectTrigger className="h-8 w-20 text-xs">
-                    <SelectValue placeholder="—" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {buses
-                      .filter((b) => b.active)
-                      .map((b) => (
-                        <SelectItem key={b.id} value={b.id}>
-                          {b.id}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </TableCell>
-            </TableRow>
-          ))}
+                    <SelectTrigger className={`mx-auto h-8 w-auto min-w-[32px] px-2 text-xs border-none bg-transparent hover:bg-accent ${isOverridden ? "text-primary font-bold" : "text-muted-foreground"}`}>
+                      {isOverridden ? (
+                        <span>{overrides[t.tripNumber - 1]}</span>
+                      ) : (
+                        <Edit className="h-4 w-4" />
+                      )}
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__" className="text-muted-foreground italic">
+                        Default (Auto)
+                      </SelectItem>
+                      {buses
+                        .filter((b) => b.active)
+                        .map((b) => (
+                          <SelectItem key={b.id} value={b.id}>
+                            {b.id}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+              </TableRow>
+            );
+          })}
           {trips.length === 0 && (
             <TableRow>
               <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
