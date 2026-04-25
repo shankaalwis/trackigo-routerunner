@@ -789,9 +789,10 @@ export function Dashboard() {
                                 {s.id}
                               </div>
                               <div>
-                                <div className="font-semibold">{s.id}</div>
-                                {bus?.driver && (
-                                  <div className="text-xs text-muted-foreground">{bus.driver}</div>
+                                {bus?.driver ? (
+                                  <div className="font-semibold">{bus.driver}</div>
+                                ) : (
+                                  <div className="text-xs text-muted-foreground italic">No driver assigned</div>
                                 )}
                               </div>
                             </div>
@@ -811,6 +812,31 @@ export function Dashboard() {
                               <span className="font-mono text-foreground">
                                 {format12(s.nextAvailableMin)}
                               </span>
+                            </div>
+                          </div>
+
+                          <div className="mt-3">
+                            <div className="mb-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                              Assigned Turns
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {result.trips
+                                .filter((t) => t.busId === s.id && !t.missed)
+                                .map((t) => (
+                                  <Badge
+                                    key={t.tripNumber}
+                                    variant="outline"
+                                    className="px-1.5 py-0 text-[10px] font-medium bg-muted/30"
+                                    title={`Trip #${t.tripNumber}`}
+                                  >
+                                    {t.departureLabel}
+                                  </Badge>
+                                ))}
+                              {result.trips.filter((t) => t.busId === s.id && !t.missed).length === 0 && (
+                                <span className="text-[10px] text-muted-foreground italic">
+                                  No turns assigned
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="mt-3">
