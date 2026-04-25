@@ -458,7 +458,7 @@ export function Dashboard() {
                   minute: "2-digit",
                   second: "2-digit",
                   hour12: true,
-                })}
+                }).toUpperCase()}
               </div>
               <div className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mt-1">
                 {now.toLocaleDateString([], {
@@ -609,74 +609,26 @@ export function Dashboard() {
       {/* ══ MAIN CONTENT ══ */}
       <div className="mx-auto max-w-[1400px] px-6 py-8">
         {/* ── Day Navigation ── */}
-        <div className="mb-6 flex items-center justify-between rounded-2xl border border-border bg-card/50 p-3 shadow-sm backdrop-blur-sm print:hidden">
-          <div className="flex flex-1 items-center justify-start gap-1 sm:gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleSelectDay(currentDay - 1)}
-              className="text-muted-foreground hover:text-foreground rounded-xl px-2 sm:px-3"
-            >
-              <ChevronLeft className="h-4 w-4 sm:mr-1" />
-              <span className="hidden sm:inline">Prev</span>
-            </Button>
-            {currentDay !== 0 && (
+        <div className="mb-6 flex items-center justify-center gap-1 sm:gap-2 print:hidden">
+          {Array.from({ length: 3 }, (_, i) => {
+            const offset = i - 1; // -1 (Yesterday), 0 (Today), 1 (Tomorrow)
+            const isActive = currentDay === offset;
+            
+            return (
               <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleSelectDay(0)}
-                className="rounded-xl h-8 w-8 sm:h-9 sm:w-auto sm:px-3 text-xs font-semibold bg-primary/5 border-primary/20 text-primary hover:bg-primary/10 transition-all flex items-center justify-center p-0"
+                key={offset}
+                variant={isActive ? "secondary" : "ghost"}
+                className={`flex items-center justify-center h-7 sm:h-8 px-3 sm:px-4 rounded-full transition-all ${
+                  isActive ? "font-semibold text-foreground bg-secondary" : "font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                }`}
+                onClick={() => handleSelectDay(offset)}
               >
-                <Calendar className="h-4 w-4 sm:mr-1.5" />
-                <span className="hidden sm:inline">Today</span>
+                <span className="text-[10px] sm:text-xs tracking-wide">
+                  {offset === -1 ? "Yesterday" : offset === 0 ? "Today" : "Tomorrow"}
+                </span>
               </Button>
-            )}
-          </div>
-          
-          <div className="flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-2">
-            {Array.from({ length: 7 }, (_, i) => {
-              const offset = currentDay + i - 3; // Center ribbon on currentDay
-              
-              const d = new Date();
-              d.setDate(d.getDate() + offset);
-              const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
-              const dateNum = d.getDate();
-              
-              const isGenerated = days.some((d) => d.day === offset);
-              const isActive = currentDay === offset;
-              
-              // Hide the outermost days on very small screens to prevent squeezing
-              const isMobileHidden = i === 0 || i === 6 ? "hidden sm:flex" : "flex";
-              
-              return (
-                <Button
-                  key={offset}
-                  variant={isActive ? "default" : isGenerated ? "secondary" : "ghost"}
-                  className={`${isMobileHidden} flex-col items-center justify-center h-12 w-12 sm:h-14 sm:w-14 shrink-0 rounded-full transition-all ${
-                    isActive ? "shadow-lg shadow-primary/20 scale-105 bg-primary text-primary-foreground hover:bg-primary/90" : "hover:bg-primary/5 hover:text-primary"
-                  }`}
-                  onClick={() => handleSelectDay(offset)}
-                >
-                  <span className={`text-[9px] sm:text-[10px] uppercase font-bold tracking-wider ${isActive ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                    {offset === 0 ? "Today" : dayName}
-                  </span>
-                  <span className="text-base sm:text-lg font-black mt-0.5 sm:mt-0">{dateNum}</span>
-                </Button>
-              );
-            })}
-          </div>
-
-          <div className="flex flex-1 items-center justify-end">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground rounded-xl px-2 sm:px-3"
-              onClick={() => handleSelectDay(currentDay + 1)}
-            >
-              <span className="hidden sm:inline">Next</span>
-              <ChevronRight className="h-4 w-4 sm:ml-1" />
-            </Button>
-          </div>
+            );
+          })}
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
