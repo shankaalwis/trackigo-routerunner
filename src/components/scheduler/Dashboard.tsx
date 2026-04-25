@@ -84,7 +84,7 @@ export function Dashboard() {
 
   /* ── multi-day state ─── */
   const [days, setDays] = useState<DaySchedule[]>([]);
-  const [currentDay, setCurrentDay] = useState(1);
+  const [currentDay, setCurrentDay] = useState(0);
   const [activeTab, setActiveTab] = useState("schedule");
 
   /* ── real-time clock ── */
@@ -150,12 +150,12 @@ export function Dashboard() {
     // Always generate Day 1 on load
     const day1Result = generateSchedule(activeConfig, activeBuses);
     const day1: DaySchedule = {
-      day: 1,
+      day: 0,
       result: day1Result,
       initialQueue: activeBuses.filter((b) => b.active).map((b) => b.id),
     };
     setDays([day1]);
-    setCurrentDay(1);
+    setCurrentDay(0);
     setHydrated(true);
   }, [dbBuses, dbConfig, busesLoading, configLoading]);
 
@@ -177,9 +177,9 @@ export function Dashboard() {
 
     // Carry queue from previous day if available
     let initialQueue: string[] | undefined;
-    if (currentDay > 1) {
-      const prevDay = days.find((d) => d.day === currentDay - 1);
-      initialQueue = prevDay?.result.finalQueue;
+    const prevDay = days.find((d) => d.day === currentDay - 1);
+    if (prevDay) {
+      initialQueue = prevDay.result.finalQueue;
     } else {
       initialQueue = daySchedule?.initialQueue;
     }
@@ -190,13 +190,10 @@ export function Dashboard() {
 
   /* ── generate schedule for current day ─── */
   const handleGenerate = useCallback(() => {
-    // Determine initial queue: if generating for day > 1, carry from previous day
     let initialQueue: string[] | undefined;
-    if (currentDay > 1) {
-      const prevDay = days.find((d) => d.day === currentDay - 1);
-      if (prevDay) {
-        initialQueue = prevDay.result.finalQueue;
-      }
+    const prevDay = days.find((d) => d.day === currentDay - 1);
+    if (prevDay) {
+      initialQueue = prevDay.result.finalQueue;
     }
 
     const newResult = generateSchedule(config, buses, initialQueue);
@@ -207,7 +204,6 @@ export function Dashboard() {
     };
 
     setDays((prev) => {
-      // Replace if this day exists, otherwise append
       const existing = prev.findIndex((d) => d.day === currentDay);
       if (existing >= 0) {
         const copy = [...prev];
@@ -219,47 +215,38 @@ export function Dashboard() {
     });
     setOverrides({});
     setActiveTab("schedule");
-    toast.success(`Day ${currentDay} schedule generated`, {
-      description: `${newResult.completedTurns} turns scheduled for ${config.routeName}.${initialQueue ? " Queue carried from Day " + (currentDay - 1) + "." : ""}`,
+    toast.success(`Schedule generated`, {
+      description: `${newResult.completedTurns} turns scheduled.`,
     });
   }, [config, buses, currentDay, days]);
 
-  /* ── next day ─── */
-  const handleNextDay = useCallback(() => {
-    const nextDayNum = currentDay + 1;
-    const prevDayResult = days.find((d) => d.day === currentDay);
-    const prevQueue = prevDayResult?.result.finalQueue;
-
-    if (!prevQueue) {
-      toast.error("Generate the current day first", {
-        description: `Day ${currentDay} must be generated before moving to Day ${nextDayNum}.`,
-      });
+  /* ── select day ─── */
+  const handleSelectDay = useCallback((targetDay: number) => {
+    if (days.some(d => d.day === targetDay)) {
+      setCurrentDay(targetDay);
       return;
     }
-
-    const newResult = generateSchedule(config, buses, prevQueue);
+    
+    let initialQueue: string[] | undefined;
+    const prevDay = days.find(d => d.day === targetDay - 1);
+    if (prevDay) {
+      initialQueue = prevDay.result.finalQueue;
+    } else {
+      initialQueue = buses.filter(b => b.active).map(b => b.id);
+    }
+    
+    const newResult = generateSchedule(config, buses, initialQueue);
     const newDay: DaySchedule = {
-      day: nextDayNum,
+      day: targetDay,
       result: newResult,
-      initialQueue: prevQueue,
+      initialQueue,
     };
-
-    setDays((prev) => {
-      const existing = prev.findIndex((d) => d.day === nextDayNum);
-      if (existing >= 0) {
-        const copy = [...prev];
-        copy[existing] = newDay;
-        return copy;
-      }
-      return [...prev, newDay];
-    });
-    setCurrentDay(nextDayNum);
+    
+    setDays(prev => [...prev, newDay]);
+    setCurrentDay(targetDay);
     setOverrides({});
     setActiveTab("schedule");
-    toast.success(`Day ${nextDayNum} schedule generated`, {
-      description: `Queue carried from Day ${currentDay}. Starting bus: ${prevQueue[0]}.`,
-    });
-  }, [config, buses, currentDay, days]);
+  }, [days, config, buses]);
 
   /* ── filters ─── */
   const [search, setSearch] = useState("");
@@ -379,17 +366,15 @@ export function Dashboard() {
   const startingQueue = useMemo(() => {
     const current = days.find((d) => d.day === currentDay);
     if (current) return current.initialQueue;
-    if (currentDay > 1) {
-      const prev = days.find((d) => d.day === currentDay - 1);
-      return prev?.result.finalQueue;
-    }
+    const prev = days.find((d) => d.day === currentDay - 1);
+    if (prev) return prev.result.finalQueue;
     return buses.filter((b) => b.active).map((b) => b.id);
   }, [days, currentDay, buses]);
 
   const currentDayName = useMemo(() => {
     const d = new Date();
-    d.setDate(d.getDate() + (currentDay - 1));
-    return d.toLocaleDateString([], { weekday: "long" });
+    d.setDate(d.getDate() + currentDay);
+    return d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
   }, [currentDay]);
 
   /* ── CSV export ─── */
@@ -421,11 +406,11 @@ export function Dashboard() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `schedule-day${currentDay}-${config.routeName.replace(/\s+/g, "-")}.csv`;
+    a.download = `schedule-${currentDayName.replace(/[\s,]+/g, "-").toLowerCase()}-${config.routeName.replace(/\s+/g, "-")}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success("CSV exported successfully", {
-      description: `Day ${currentDay}: ${result.trips.length} trips exported.`,
+      description: `${currentDayName}: ${result.trips.length} trips exported.`,
     });
   };
 
@@ -472,6 +457,7 @@ export function Dashboard() {
                   hour: "2-digit",
                   minute: "2-digit",
                   second: "2-digit",
+                  hour12: true,
                 })}
               </div>
               <div className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mt-1">
@@ -622,6 +608,77 @@ export function Dashboard() {
 
       {/* ══ MAIN CONTENT ══ */}
       <div className="mx-auto max-w-[1400px] px-6 py-8">
+        {/* ── Day Navigation ── */}
+        <div className="mb-6 flex items-center justify-between rounded-2xl border border-border bg-card/50 p-3 shadow-sm backdrop-blur-sm print:hidden">
+          <div className="flex flex-1 items-center justify-start gap-1 sm:gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleSelectDay(currentDay - 1)}
+              className="text-muted-foreground hover:text-foreground rounded-xl px-2 sm:px-3"
+            >
+              <ChevronLeft className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Prev</span>
+            </Button>
+            {currentDay !== 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleSelectDay(0)}
+                className="rounded-xl h-8 w-8 sm:h-9 sm:w-auto sm:px-3 text-xs font-semibold bg-primary/5 border-primary/20 text-primary hover:bg-primary/10 transition-all flex items-center justify-center p-0"
+              >
+                <Calendar className="h-4 w-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">Today</span>
+              </Button>
+            )}
+          </div>
+          
+          <div className="flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-2">
+            {Array.from({ length: 7 }, (_, i) => {
+              const offset = currentDay + i - 3; // Center ribbon on currentDay
+              
+              const d = new Date();
+              d.setDate(d.getDate() + offset);
+              const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+              const dateNum = d.getDate();
+              
+              const isGenerated = days.some((d) => d.day === offset);
+              const isActive = currentDay === offset;
+              
+              // Hide the outermost days on very small screens to prevent squeezing
+              const isMobileHidden = i === 0 || i === 6 ? "hidden sm:flex" : "flex";
+              
+              return (
+                <Button
+                  key={offset}
+                  variant={isActive ? "default" : isGenerated ? "secondary" : "ghost"}
+                  className={`${isMobileHidden} flex-col items-center justify-center h-12 w-12 sm:h-14 sm:w-14 shrink-0 rounded-full transition-all ${
+                    isActive ? "shadow-lg shadow-primary/20 scale-105 bg-primary text-primary-foreground hover:bg-primary/90" : "hover:bg-primary/5 hover:text-primary"
+                  }`}
+                  onClick={() => handleSelectDay(offset)}
+                >
+                  <span className={`text-[9px] sm:text-[10px] uppercase font-bold tracking-wider ${isActive ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                    {offset === 0 ? "Today" : dayName}
+                  </span>
+                  <span className="text-base sm:text-lg font-black mt-0.5 sm:mt-0">{dateNum}</span>
+                </Button>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-1 items-center justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground rounded-xl px-2 sm:px-3"
+              onClick={() => handleSelectDay(currentDay + 1)}
+            >
+              <span className="hidden sm:inline">Next</span>
+              <ChevronRight className="h-4 w-4 sm:ml-1" />
+            </Button>
+          </div>
+        </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-6 flex w-full h-auto gap-1 overflow-x-auto overflow-y-hidden p-1 bg-muted/50 rounded-xl no-scrollbar print:hidden">
             <TabsTrigger value="schedule" className="shrink-0 min-w-[100px]">
@@ -654,8 +711,8 @@ export function Dashboard() {
           {/* ── SCHEDULE TAB ── */}
           <TabsContent value="schedule" className="space-y-4">
             {/* Queue carry-over info banner */}
-            {currentDay > 1 && startingQueue && (
-              <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+            {days.some((d) => d.day === currentDay - 1) && startingQueue && (
+              <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm mb-4">
                 <Calendar className="h-4 w-4 text-primary shrink-0" />
                 <div>
                   <strong>{currentDayName}</strong> — Queue carried from previous session. Starting
