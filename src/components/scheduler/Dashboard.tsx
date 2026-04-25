@@ -796,7 +796,7 @@ export function Dashboard() {
                               </div>
                             </div>
                             <Badge variant={s.totalTurns > 0 ? "default" : "secondary"}>
-                              {s.totalTurns} turns
+                              {s.totalTurns} turns today
                             </Badge>
                           </div>
                           <div className="mt-3 space-y-1 text-xs text-muted-foreground">
@@ -843,24 +843,29 @@ export function Dashboard() {
                     Order after the last assignment. Front of queue gets next turn.
                   </p>
                   <div className="flex flex-col gap-2">
-                    {result.finalQueue.map((id, i) => (
-                      <div
-                        key={id}
-                        className={`flex items-center justify-between rounded-md border px-3 py-2 ${
-                          i === 0 ? "border-primary/40 bg-primary/5" : "border-border bg-card"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="w-6 text-xs font-mono text-muted-foreground">
-                            #{i + 1}
-                          </span>
-                          <span className="font-semibold">{id}</span>
+                    {result.finalQueue.map((id, i) => {
+                      const busState = result.finalBusStates.find(s => s.id === id);
+                      const turns = busState?.totalTurns || 0;
+                      return (
+                        <div
+                          key={id}
+                          className={`flex items-center justify-between rounded-md border px-3 py-2 ${
+                            i === 0 ? "border-primary/40 bg-primary/5" : "border-border bg-card"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="w-6 text-xs font-mono text-muted-foreground">
+                              #{i + 1}
+                            </span>
+                            <span className="font-semibold">{id}</span>
+                            <span className="text-xs text-muted-foreground">({turns} turns today)</span>
+                          </div>
+                          {i === 0 && (
+                            <Badge className="bg-primary text-primary-foreground">Next</Badge>
+                          )}
                         </div>
-                        {i === 0 && (
-                          <Badge className="bg-primary text-primary-foreground">Next</Badge>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
