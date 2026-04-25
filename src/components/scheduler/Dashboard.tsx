@@ -30,15 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   Activity,
   AlertTriangle,
@@ -78,9 +70,8 @@ import { ThemeProvider } from "@/hooks/use-theme";
 type DaySchedule = {
   day: number;
   result: ScheduleResult;
-  initialQueue: string[];  // queue order used to start this day
+  initialQueue: string[]; // queue order used to start this day
 };
-
 
 /* ── Dashboard ───────────────────────────────────────────────────── */
 
@@ -137,15 +128,14 @@ export function Dashboard() {
   });
 
   const { data: dbBuses, isLoading: busesLoading } = useQuery({
-    queryKey: ['buses'],
+    queryKey: ["buses"],
     queryFn: fetchBuses,
   });
 
   const { data: dbConfig, isLoading: configLoading } = useQuery({
-    queryKey: ['config'],
+    queryKey: ["config"],
     queryFn: fetchConfig,
   });
-
 
   // hydrate from persistence and DB and generate Day 1 automatically
   useEffect(() => {
@@ -184,7 +174,7 @@ export function Dashboard() {
     });
 
     const daySchedule = days.find((d) => d.day === currentDay);
-    
+
     // Carry queue from previous day if available
     let initialQueue: string[] | undefined;
     if (currentDay > 1) {
@@ -277,7 +267,13 @@ export function Dashboard() {
   const [statusFilter, setStatusFilter] = useState<"all" | "assigned" | "missed">("all");
 
   /* ── sorting ─── */
-  type SortKey = "tripNumber" | "departureMin" | "period" | "busId" | "tripDurationMin" | "busTotalTurns";
+  type SortKey =
+    | "tripNumber"
+    | "departureMin"
+    | "period"
+    | "busId"
+    | "tripDurationMin"
+    | "busTotalTurns";
   const [sortKey, setSortKey] = useState<SortKey>("tripNumber");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
@@ -352,27 +348,25 @@ export function Dashboard() {
     .filter((b) => b.totalTurns > 0)
     .sort((a, b) => a.totalTurns - b.totalTurns)[0];
   const usedBuses = result.finalBusStates.filter((b) => b.totalTurns > 0).length;
-  const avgTurns =
-    usedBuses > 0
-      ? (result.completedTurns / usedBuses).toFixed(1)
-      : "0";
+  const avgTurns = usedBuses > 0 ? (result.completedTurns / usedBuses).toFixed(1) : "0";
 
   /* ── real-time metrics ── */
   const nextTrip = useMemo(() => {
-    return result.trips.find(t => t.departureMin > wallClock && !t.missed);
+    return result.trips.find((t) => t.departureMin > wallClock && !t.missed);
   }, [result.trips, wallClock]);
 
   const completedTurnsCount = useMemo(() => {
-    return result.trips.filter(t => !t.missed && t.departureMin + t.tripDurationMin <= wallClock).length;
+    return result.trips.filter((t) => !t.missed && t.departureMin + t.tripDurationMin <= wallClock)
+      .length;
   }, [result.trips, wallClock]);
 
   const busesRunningToday = useMemo(() => {
-    return new Set(result.trips.filter(t => !t.missed && t.busId).map(t => t.busId)).size;
+    return new Set(result.trips.filter((t) => !t.missed && t.busId).map((t) => t.busId)).size;
   }, [result.trips]);
 
   const topPerformer = useMemo(() => {
     const counts: Record<string, number> = {};
-    result.trips.forEach(t => {
+    result.trips.forEach((t) => {
       if (t.busId) counts[t.busId] = (counts[t.busId] || 0) + 1;
     });
     const entries = Object.entries(counts);
@@ -395,7 +389,7 @@ export function Dashboard() {
   const currentDayName = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() + (currentDay - 1));
-    return d.toLocaleDateString([], { weekday: 'long' });
+    return d.toLocaleDateString([], { weekday: "long" });
   }, [currentDay]);
 
   /* ── CSV export ─── */
@@ -430,7 +424,9 @@ export function Dashboard() {
     a.download = `schedule-day${currentDay}-${config.routeName.replace(/\s+/g, "-")}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("CSV exported successfully", { description: `Day ${currentDay}: ${result.trips.length} trips exported.` });
+    toast.success("CSV exported successfully", {
+      description: `Day ${currentDay}: ${result.trips.length} trips exported.`,
+    });
   };
 
   return (
@@ -444,8 +440,12 @@ export function Dashboard() {
                 <BusIcon className="h-9 w-9" />
               </div>
               <div>
-                <h1 className="text-2xl md:text-3xl font-semibold font-sans tracking-tight leading-none">Route Runner</h1>
-                <p className="text-[10px] md:text-xs font-bold text-primary/70 uppercase tracking-[0.2em] mt-1">by TrackiGo</p>
+                <h1 className="text-2xl md:text-3xl font-semibold font-sans tracking-tight leading-none">
+                  Route Runner
+                </h1>
+                <p className="text-[10px] md:text-xs font-bold text-primary/70 uppercase tracking-[0.2em] mt-1">
+                  by TrackiGo
+                </p>
                 <div className="mt-2 flex flex-wrap items-center justify-center md:justify-start gap-2 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1.5">
                     <Route className="h-4 w-4" />
@@ -465,70 +465,20 @@ export function Dashboard() {
             {/* Big Clock Display */}
             <div className="flex flex-col items-center md:items-end text-center md:text-right bg-primary/5 md:bg-transparent p-4 md:p-0 rounded-2xl w-full md:w-auto border border-primary/10 md:border-none">
               <div className="text-4xl md:text-4xl lg:text-5xl font-black tracking-tighter text-primary">
-                {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                {now.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })}
               </div>
               <div className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mt-1">
-                {now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                {now.toLocaleDateString([], {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
               </div>
-            </div>
-
-
-          </div>
-
-          {/* ── Day selector strip ── */}
-          <div className="mt-6 flex flex-wrap items-center justify-center md:justify-start gap-3 print:hidden bg-muted/30 p-3 rounded-2xl border border-border">
-            <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1 shadow-sm">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-lg"
-                disabled={currentDay <= 1}
-                onClick={() => { setCurrentDay((d) => d - 1); setOverrides({}); }}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="flex items-center gap-1.5 px-3">
-                <Calendar className="h-4 w-4 text-primary" />
-                <span className="font-bold text-sm">{currentDayName}</span>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-lg"
-                disabled={currentDay >= days.length}
-                onClick={() => { setCurrentDay((d) => d + 1); setOverrides({}); }}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleNextDay}
-              id="next-day-btn"
-              className="rounded-xl font-semibold border-primary/20 hover:bg-primary/5"
-            >
-              <Plus className="mr-1 h-4 w-4" /> Next Day
-            </Button>
-            {startingQueue && currentDay > 1 && !isMobile && (
-              <Badge variant="secondary" className="text-[10px] uppercase tracking-wider font-bold bg-primary/5 text-primary border-primary/10">
-                Queue carried from Day {currentDay - 1}
-              </Badge>
-            )}
-            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-full">
-              {days.map((d) => (
-                <button
-                  key={d.day}
-                  onClick={() => { setCurrentDay(d.day); setOverrides({}); }}
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold transition-all shadow-sm ${
-                    d.day === currentDay
-                      ? "bg-primary text-primary-foreground scale-110"
-                      : "bg-card text-muted-foreground hover:bg-accent border border-border"
-                  }`}
-                >
-                  {d.day}
-                </button>
-              ))}
             </div>
           </div>
 
@@ -538,32 +488,41 @@ export function Dashboard() {
               label="Next Departure"
               tone="info"
               className="lg:col-span-2 py-6"
-              value={nextTrip ? (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-end gap-3">
-                    <span className="text-4xl font-black">{nextTrip.departureLabel}</span>
-                    <Badge variant="outline" className="mb-1 border-primary/30 text-primary">
-                      Trip #{nextTrip.tripNumber}
-                    </Badge>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-medium">
-                    <div className="flex items-center gap-1.5 text-foreground">
-                      <span>Bus: <span className="font-bold">{nextTrip.busId}</span></span>
+              value={
+                nextTrip ? (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-end gap-3">
+                      <span className="text-4xl font-black">{nextTrip.departureLabel}</span>
+                      <Badge variant="outline" className="mb-1 border-primary/30 text-primary">
+                        Trip #{nextTrip.tripNumber}
+                      </Badge>
                     </div>
-                    {buses.find(b => b.id === nextTrip.busId)?.driver && (
-                      <div className="text-muted-foreground">
-                        Driver: <span className="text-foreground">{buses.find(b => b.id === nextTrip.busId)?.driver}</span>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-medium">
+                      <div className="flex items-center gap-1.5 text-foreground">
+                        <span>
+                          Bus: <span className="font-bold">{nextTrip.busId}</span>
+                        </span>
                       </div>
-                    )}
-                    <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                      <span>{config.routeName}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400 border-l pl-4">
-                      <span>In {Math.floor(nextTrip.departureMin - wallClock)} mins</span>
+                      {buses.find((b) => b.id === nextTrip.busId)?.driver && (
+                        <div className="text-muted-foreground">
+                          Driver:{" "}
+                          <span className="text-foreground">
+                            {buses.find((b) => b.id === nextTrip.busId)?.driver}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                        <span>{config.routeName}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400 border-l pl-4">
+                        <span>In {Math.floor(nextTrip.departureMin - wallClock)} mins</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ) : "No more trips today"}
+                ) : (
+                  "No more trips today"
+                )
+              }
             />
             <KPI
               label="Turns Completed"
@@ -573,14 +532,16 @@ export function Dashboard() {
                 <div className="flex flex-col gap-2">
                   <div className="flex items-end gap-3">
                     <span className="text-4xl font-black">{completedTurnsCount}</span>
-                    <span className="mb-1 text-lg font-bold text-muted-foreground">/ {result.trips.length} turns</span>
+                    <span className="mb-1 text-lg font-bold text-muted-foreground">
+                      / {result.trips.length} turns
+                    </span>
                     <Badge variant="secondary" className="mb-1 ml-auto">
                       {Math.round((completedTurnsCount / result.trips.length) * 100)}% Complete
                     </Badge>
                   </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                    <div 
-                      className="h-full bg-success transition-all duration-500" 
+                    <div
+                      className="h-full bg-success transition-all duration-500"
                       style={{ width: `${(completedTurnsCount / result.trips.length) * 100}%` }}
                     />
                   </div>
@@ -589,20 +550,17 @@ export function Dashboard() {
             />
             <KPI
               label="Peak Intensity"
-              value={`${result.trips.filter(t => t.period === "peak").length}`}
+              value={`${result.trips.filter((t) => t.period === "peak").length}`}
             />
             <KPI
               label="Active Fleet"
-              value={`${buses.filter(b => b.active).length}/${buses.length}`}
+              value={`${buses.filter((b) => b.active).length}/${buses.length}`}
             />
             <KPI
               label="Service Hours"
               value={`${(Math.abs(parseEnd(config.endTime) - parseHM(config.startTime)) / 60).toFixed(1)}h`}
             />
-            <KPI
-              label="Top Performer"
-              value={`${topPerformer.id} (${topPerformer.count} turns)`}
-            />
+            <KPI label="Top Performer" value={`${topPerformer.id} (${topPerformer.count} turns)`} />
           </div>
 
           {/* ── Configuration Summary Tiles ── */}
@@ -616,7 +574,9 @@ export function Dashboard() {
               label="Intervals (Peak/Off)"
               value={
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-xl font-bold text-amber-600 dark:text-amber-400">{config.peakIntervalMin}m</span>
+                  <span className="text-xl font-bold text-amber-600 dark:text-amber-400">
+                    {config.peakIntervalMin}m
+                  </span>
                   <span className="text-muted-foreground text-sm">/</span>
                   <span className="text-xl font-bold">{config.offPeakIntervalMin}m</span>
                 </div>
@@ -627,7 +587,9 @@ export function Dashboard() {
               label="Durations (Peak/Off)"
               value={
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-xl font-bold text-amber-600 dark:text-amber-400">{config.peakTurnMin}m</span>
+                  <span className="text-xl font-bold text-amber-600 dark:text-amber-400">
+                    {config.peakTurnMin}m
+                  </span>
                   <span className="text-muted-foreground text-sm">/</span>
                   <span className="text-xl font-bold">{config.offPeakTurnMin}m</span>
                 </div>
@@ -639,7 +601,11 @@ export function Dashboard() {
               value={
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {config.peakWindows.map((pw, i) => (
-                    <Badge key={i} variant="secondary" className="text-[10px] font-bold h-6 bg-amber-500/10 text-amber-600 border-amber-500/20">
+                    <Badge
+                      key={i}
+                      variant="secondary"
+                      className="text-[10px] font-bold h-6 bg-amber-500/10 text-amber-600 border-amber-500/20"
+                    >
                       {pw.start}-{pw.end}
                     </Badge>
                   ))}
@@ -655,13 +621,27 @@ export function Dashboard() {
       <div className="mx-auto max-w-[1400px] px-6 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-6 flex w-full h-auto gap-1 overflow-x-auto overflow-y-hidden p-1 bg-muted/50 rounded-xl no-scrollbar print:hidden">
-            <TabsTrigger value="schedule" className="shrink-0 min-w-[100px]">Schedule</TabsTrigger>
-            <TabsTrigger value="live" className="shrink-0 min-w-[100px]">Live Map</TabsTrigger>
-            <TabsTrigger value="buses" className="shrink-0 min-w-[100px]">Buses &amp; Queue</TabsTrigger>
-            <TabsTrigger value="analytics" className="shrink-0 min-w-[100px]">Analytics</TabsTrigger>
-            <TabsTrigger value="logic" className="shrink-0 min-w-[100px]">Logic Flow</TabsTrigger>
-            <TabsTrigger value="fleet" className="shrink-0 min-w-[100px]">Fleet</TabsTrigger>
-            <TabsTrigger value="setup" className="shrink-0 min-w-[100px]">Setup</TabsTrigger>
+            <TabsTrigger value="schedule" className="shrink-0 min-w-[100px]">
+              Schedule
+            </TabsTrigger>
+            <TabsTrigger value="live" className="shrink-0 min-w-[100px]">
+              Live Map
+            </TabsTrigger>
+            <TabsTrigger value="buses" className="shrink-0 min-w-[100px]">
+              Buses &amp; Queue
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="shrink-0 min-w-[100px]">
+              Analytics
+            </TabsTrigger>
+            <TabsTrigger value="logic" className="shrink-0 min-w-[100px]">
+              Logic Flow
+            </TabsTrigger>
+            <TabsTrigger value="fleet" className="shrink-0 min-w-[100px]">
+              Fleet
+            </TabsTrigger>
+            <TabsTrigger value="setup" className="shrink-0 min-w-[100px]">
+              Setup
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="live">
@@ -675,8 +655,9 @@ export function Dashboard() {
               <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
                 <Calendar className="h-4 w-4 text-primary shrink-0" />
                 <div>
-                  <strong>{currentDayName}</strong> — Queue carried from previous session.
-                  Starting order: {startingQueue.slice(0, 5).join(" → ")}{startingQueue.length > 5 ? " → …" : ""}
+                  <strong>{currentDayName}</strong> — Queue carried from previous session. Starting
+                  order: {startingQueue.slice(0, 5).join(" → ")}
+                  {startingQueue.length > 5 ? " → …" : ""}
                 </div>
               </div>
             )}
@@ -718,10 +699,20 @@ export function Dashboard() {
                     </SelectContent>
                   </Select>
                   <div className="flex items-center gap-2 border-l pl-2">
-                    <Button variant="outline" size="sm" onClick={exportCSV} id="export-csv-table-btn">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={exportCSV}
+                      id="export-csv-table-btn"
+                    >
                       <Download className="mr-2 h-4 w-4" /> Export CSV
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => window.print()} id="print-table-btn">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.print()}
+                      id="print-table-btn"
+                    >
                       <Printer className="mr-2 h-4 w-4" /> Print
                     </Button>
                   </div>
@@ -841,9 +832,7 @@ export function Dashboard() {
                       <div
                         key={id}
                         className={`flex items-center justify-between rounded-md border px-3 py-2 ${
-                          i === 0
-                            ? "border-primary/40 bg-primary/5"
-                            : "border-border bg-card"
+                          i === 0 ? "border-primary/40 bg-primary/5" : "border-border bg-card"
                         }`}
                       >
                         <div className="flex items-center gap-2">
@@ -883,11 +872,7 @@ export function Dashboard() {
                           borderRadius: 8,
                         }}
                       />
-                      <Bar
-                        dataKey="turns"
-                        fill="var(--primary)"
-                        radius={[6, 6, 0, 0]}
-                      />
+                      <Bar dataKey="turns" fill="var(--primary)" radius={[6, 6, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -942,7 +927,6 @@ export function Dashboard() {
           </TabsContent>
         </Tabs>
       </div>
-
     </div>
   );
 }
@@ -971,7 +955,9 @@ function KPI({
     info: "border-primary/40 bg-primary/5",
   };
   return (
-    <div className={`rounded-xl border bg-card p-4 shadow-sm transition-all hover:shadow-md ${tones[tone]} ${className}`}>
+    <div
+      className={`rounded-xl border bg-card p-4 shadow-sm transition-all hover:shadow-md ${tones[tone]} ${className}`}
+    >
       <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
         {icon}
         {label}
@@ -981,15 +967,7 @@ function KPI({
   );
 }
 
-function InfoCard({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-}) {
+function InfoCard({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
   return (
     <Card>
       <CardContent className="flex items-center gap-3 py-5">
@@ -1007,9 +985,23 @@ function InfoCard({
 
 /* ── Sortable Schedule Table ─────────────────────────────────────── */
 
-type SortKey = "tripNumber" | "departureMin" | "period" | "busId" | "tripDurationMin" | "busTotalTurns";
+type SortKey =
+  | "tripNumber"
+  | "departureMin"
+  | "period"
+  | "busId"
+  | "tripDurationMin"
+  | "busTotalTurns";
 
-function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: "asc" | "desc" }) {
+function SortIcon({
+  col,
+  sortKey,
+  sortDir,
+}: {
+  col: SortKey;
+  sortKey: SortKey;
+  sortDir: "asc" | "desc";
+}) {
   if (col !== sortKey) return <ArrowUpDown className="ml-1 inline h-3 w-3 opacity-40" />;
   return sortDir === "asc" ? (
     <ChevronUp className="ml-1 inline h-3 w-3 text-primary" />
@@ -1059,7 +1051,10 @@ function ScheduleTable({
                     <Zap className="mr-1 h-3 w-3" /> Peak
                   </Badge>
                 ) : (
-                  <Badge variant="secondary" className="border-offpeak/30 bg-offpeak/15 text-offpeak-foreground">
+                  <Badge
+                    variant="secondary"
+                    className="border-offpeak/30 bg-offpeak/15 text-offpeak-foreground"
+                  >
                     Off-peak
                   </Badge>
                 )}
@@ -1067,23 +1062,33 @@ function ScheduleTable({
 
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="space-y-1">
-                  <p className="text-[10px] uppercase text-muted-foreground font-semibold">Assigned Bus</p>
+                  <p className="text-[10px] uppercase text-muted-foreground font-semibold">
+                    Assigned Bus
+                  </p>
                   <p className="font-bold">{t.busId || "—"}</p>
                 </div>
                 <div className="space-y-1 text-right">
-                  <p className="text-[10px] uppercase text-muted-foreground font-semibold">Status</p>
+                  <p className="text-[10px] uppercase text-muted-foreground font-semibold">
+                    Status
+                  </p>
                   {t.missed ? (
-                    <Badge variant="destructive" className="h-5">Missed</Badge>
+                    <Badge variant="destructive" className="h-5">
+                      Missed
+                    </Badge>
                   ) : (
                     <Badge className="h-5 bg-success/20 text-success-foreground">Assigned</Badge>
                   )}
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] uppercase text-muted-foreground font-semibold">Next Available</p>
+                  <p className="text-[10px] uppercase text-muted-foreground font-semibold">
+                    Next Available
+                  </p>
                   <p className="font-mono text-sm">{t.nextAvailableLabel || "—"}</p>
                 </div>
                 <div className="space-y-1 text-right">
-                  <p className="text-[10px] uppercase text-muted-foreground font-semibold">Bus Turns</p>
+                  <p className="text-[10px] uppercase text-muted-foreground font-semibold">
+                    Bus Turns
+                  </p>
                   <p className="text-sm">{t.busTotalTurns ?? "—"}</p>
                 </div>
               </div>
@@ -1094,7 +1099,9 @@ function ScheduleTable({
                   value={overrides[t.tripNumber - 1] ?? ""}
                   onValueChange={(v) => onReassign(t.tripNumber - 1, v)}
                 >
-                  <SelectTrigger className={`h-9 w-32 px-3 text-xs rounded-xl ${isOverridden ? "border-primary bg-primary/5 text-primary font-bold" : ""}`}>
+                  <SelectTrigger
+                    className={`h-9 w-32 px-3 text-xs rounded-xl ${isOverridden ? "border-primary bg-primary/5 text-primary font-bold" : ""}`}
+                  >
                     <SelectValue placeholder="Override" />
                     {isOverridden ? (
                       <span className="ml-auto">{overrides[t.tripNumber - 1]}</span>
@@ -1145,16 +1152,10 @@ function ScheduleTable({
             >
               Departure <SortIcon col="departureMin" sortKey={sortKey} sortDir={sortDir} />
             </TableHead>
-            <TableHead
-              className="cursor-pointer select-none"
-              onClick={() => onSort("period")}
-            >
+            <TableHead className="cursor-pointer select-none" onClick={() => onSort("period")}>
               Period <SortIcon col="period" sortKey={sortKey} sortDir={sortDir} />
             </TableHead>
-            <TableHead
-              className="cursor-pointer select-none"
-              onClick={() => onSort("busId")}
-            >
+            <TableHead className="cursor-pointer select-none" onClick={() => onSort("busId")}>
               Bus <SortIcon col="busId" sortKey={sortKey} sortDir={sortDir} />
             </TableHead>
             <TableHead
@@ -1178,10 +1179,7 @@ function ScheduleTable({
           {trips.map((t) => {
             const isOverridden = overrides[t.tripNumber - 1] !== undefined;
             return (
-              <TableRow
-                key={t.tripNumber}
-                className={t.period === "peak" ? "bg-peak/5" : ""}
-              >
+              <TableRow key={t.tripNumber} className={t.period === "peak" ? "bg-peak/5" : ""}>
                 <TableCell className="font-mono text-xs text-muted-foreground">
                   {t.tripNumber}
                 </TableCell>
@@ -1208,9 +1206,7 @@ function ScheduleTable({
                   )}
                 </TableCell>
                 <TableCell className="text-sm">{t.tripDurationMin}m</TableCell>
-                <TableCell className="font-mono text-sm">
-                  {t.nextAvailableLabel ?? "—"}
-                </TableCell>
+                <TableCell className="font-mono text-sm">{t.nextAvailableLabel ?? "—"}</TableCell>
                 <TableCell>{t.busTotalTurns ?? "—"}</TableCell>
                 <TableCell>
                   {t.missed ? (
@@ -1226,7 +1222,9 @@ function ScheduleTable({
                     value={overrides[t.tripNumber - 1] ?? ""}
                     onValueChange={(v) => onReassign(t.tripNumber - 1, v)}
                   >
-                    <SelectTrigger className={`mx-auto h-8 w-auto min-w-[32px] px-2 text-xs border-none bg-transparent hover:bg-accent ${isOverridden ? "text-primary font-bold" : "text-muted-foreground"}`}>
+                    <SelectTrigger
+                      className={`mx-auto h-8 w-auto min-w-[32px] px-2 text-xs border-none bg-transparent hover:bg-accent ${isOverridden ? "text-primary font-bold" : "text-muted-foreground"}`}
+                    >
                       {isOverridden ? (
                         <span>{overrides[t.tripNumber - 1]}</span>
                       ) : (
@@ -1282,8 +1280,11 @@ function Timeline({
     <div className="space-y-2">
       <div className="relative h-6">
         {config.peakWindows.map((w, i) => {
-          const s = (parseInt(w.start.split(":")[0]) * 60 + parseInt(w.start.split(":")[1]) - startMin) / span;
-          const e = (parseInt(w.end.split(":")[0]) * 60 + parseInt(w.end.split(":")[1]) - startMin) / span;
+          const s =
+            (parseInt(w.start.split(":")[0]) * 60 + parseInt(w.start.split(":")[1]) - startMin) /
+            span;
+          const e =
+            (parseInt(w.end.split(":")[0]) * 60 + parseInt(w.end.split(":")[1]) - startMin) / span;
           return (
             <div
               key={i}
@@ -1328,15 +1329,45 @@ function Timeline({
 
 function FlowChart() {
   const steps = [
-    { label: "Start Day", desc: "Initialize all active buses and set queue order", color: "var(--primary)" },
-    { label: "Set Time Slot", desc: "Begin at operational start time (04:30)", color: "var(--primary)" },
-    { label: "Determine Period", desc: "Check if slot falls within peak windows", color: "var(--peak)" },
-    { label: "Set Interval & Duration", desc: "Peak: 5m / 60m | Off-peak: 15m / 90m", color: "var(--peak)" },
+    {
+      label: "Start Day",
+      desc: "Initialize all active buses and set queue order",
+      color: "var(--primary)",
+    },
+    {
+      label: "Set Time Slot",
+      desc: "Begin at operational start time (04:30)",
+      color: "var(--primary)",
+    },
+    {
+      label: "Determine Period",
+      desc: "Check if slot falls within peak windows",
+      color: "var(--peak)",
+    },
+    {
+      label: "Set Interval & Duration",
+      desc: "Peak: 5m / 60m | Off-peak: 15m / 90m",
+      color: "var(--peak)",
+    },
     { label: "Scan Queue", desc: "Check buses from front of queue", color: "var(--primary)" },
-    { label: "Bus Available?", desc: "Is next-available ≤ departure time?", color: "var(--warning)", decision: true },
-    { label: "Assign Trip", desc: "Update next-available and increment turn count", color: "var(--success)" },
+    {
+      label: "Bus Available?",
+      desc: "Is next-available ≤ departure time?",
+      color: "var(--warning)",
+      decision: true,
+    },
+    {
+      label: "Assign Trip",
+      desc: "Update next-available and increment turn count",
+      color: "var(--success)",
+    },
     { label: "Move to Back", desc: "Move assigned bus to back of queue", color: "var(--success)" },
-    { label: "Check Limits", desc: "Operational hours ended?", color: "var(--destructive)", decision: true },
+    {
+      label: "Check Limits",
+      desc: "Operational hours ended?",
+      color: "var(--destructive)",
+      decision: true,
+    },
   ];
 
   return (
@@ -1365,10 +1396,10 @@ function FlowChart() {
               const col2 = (i + 1) % cols;
 
               // Grid size for viewBox (900 x 600)
-              const x1 = (col1 * 300) + 150;
-              const x2 = (col2 * 300) + 150;
-              const y1 = (row1 * 160) + 80;
-              const y2 = (row2 * 160) + 80;
+              const x1 = col1 * 300 + 150;
+              const x2 = col2 * 300 + 150;
+              const y1 = row1 * 160 + 80;
+              const y2 = row2 * 160 + 80;
 
               if (row1 === row2) {
                 return (
@@ -1449,10 +1480,10 @@ function FlowChart() {
 
         {/* Fairness rule */}
         <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-          <strong className="text-foreground">Fairness rule:</strong> The algorithm always
-          respects queue turn order. It does <em>not</em> pick the globally earliest available
-          bus — it picks the first bus in queue order whose next-available time has passed.
-          Unavailable buses are skipped temporarily but keep their queue position.
+          <strong className="text-foreground">Fairness rule:</strong> The algorithm always respects
+          queue turn order. It does <em>not</em> pick the globally earliest available bus — it picks
+          the first bus in queue order whose next-available time has passed. Unavailable buses are
+          skipped temporarily but keep their queue position.
         </div>
       </CardContent>
     </Card>
@@ -1477,7 +1508,9 @@ function SetupPanel({
       <div className="flex items-center justify-between rounded-lg border border-border bg-card p-4">
         <div>
           <h3 className="font-semibold text-lg">Save Changes to Database</h3>
-          <p className="text-sm text-muted-foreground">Click save to persist your local setup to Supabase.</p>
+          <p className="text-sm text-muted-foreground">
+            Click save to persist your local setup to Supabase.
+          </p>
         </div>
         <Button onClick={onSave} disabled={isSaving}>
           {isSaving ? "Saving..." : "Save & Generate Schedule"}
@@ -1485,127 +1518,127 @@ function SetupPanel({
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-        <CardHeader>
-          <CardTitle>Route &amp; Schedule Configuration</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <Field label="Route name">
-            <Input
-              value={config.routeName}
-              onChange={(e) => setConfig({ ...config, routeName: e.target.value })}
-              id="config-route-name"
-            />
-          </Field>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Start time">
+          <CardHeader>
+            <CardTitle>Route &amp; Schedule Configuration</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <Field label="Route name">
               <Input
-                type="time"
-                value={config.startTime}
-                onChange={(e) => setConfig({ ...config, startTime: e.target.value })}
-                id="config-start-time"
+                value={config.routeName}
+                onChange={(e) => setConfig({ ...config, routeName: e.target.value })}
+                id="config-route-name"
               />
             </Field>
-            <Field label="End time">
-              <Input
-                type="time"
-                value={config.endTime}
-                onChange={(e) => setConfig({ ...config, endTime: e.target.value })}
-                id="config-end-time"
-              />
-            </Field>
-          </div>
-          {config.peakWindows.map((w, i) => (
-            <div key={i} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label={`Peak ${i + 1} start`}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Start time">
                 <Input
                   type="time"
-                  value={w.start}
-                  onChange={(e) => {
-                    const pw = [...config.peakWindows];
-                    pw[i] = { ...pw[i], start: e.target.value };
-                    setConfig({ ...config, peakWindows: pw });
-                  }}
+                  value={config.startTime}
+                  onChange={(e) => setConfig({ ...config, startTime: e.target.value })}
+                  id="config-start-time"
                 />
               </Field>
-              <Field label={`Peak ${i + 1} end`}>
+              <Field label="End time">
                 <Input
                   type="time"
-                  value={w.end}
-                  onChange={(e) => {
-                    const pw = [...config.peakWindows];
-                    pw[i] = { ...pw[i], end: e.target.value };
-                    setConfig({ ...config, peakWindows: pw });
-                  }}
+                  value={config.endTime}
+                  onChange={(e) => setConfig({ ...config, endTime: e.target.value })}
+                  id="config-end-time"
                 />
               </Field>
             </div>
-          ))}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Peak interval (min)">
-              <Input
-                type="number"
-                min={1}
-                value={config.peakIntervalMin}
-                onChange={(e) =>
-                  setConfig({ ...config, peakIntervalMin: Number(e.target.value) || 1 })
-                }
-                id="config-peak-interval"
-              />
-            </Field>
-            <Field label="Off-peak interval (min)">
-              <Input
-                type="number"
-                min={1}
-                value={config.offPeakIntervalMin}
-                onChange={(e) =>
-                  setConfig({ ...config, offPeakIntervalMin: Number(e.target.value) || 1 })
-                }
-                id="config-offpeak-interval"
-              />
-            </Field>
-            <Field label="Peak turn duration (min)">
-              <Input
-                type="number"
-                min={1}
-                value={config.peakTurnMin}
-                onChange={(e) =>
-                  setConfig({ ...config, peakTurnMin: Number(e.target.value) || 1 })
-                }
-                id="config-peak-turn"
-              />
-            </Field>
-            <Field label="Off-peak turn duration (min)">
-              <Input
-                type="number"
-                min={1}
-                value={config.offPeakTurnMin}
-                onChange={(e) =>
-                  setConfig({ ...config, offPeakTurnMin: Number(e.target.value) || 1 })
-                }
-                id="config-offpeak-turn"
-              />
-            </Field>
+            {config.peakWindows.map((w, i) => (
+              <div key={i} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label={`Peak ${i + 1} start`}>
+                  <Input
+                    type="time"
+                    value={w.start}
+                    onChange={(e) => {
+                      const pw = [...config.peakWindows];
+                      pw[i] = { ...pw[i], start: e.target.value };
+                      setConfig({ ...config, peakWindows: pw });
+                    }}
+                  />
+                </Field>
+                <Field label={`Peak ${i + 1} end`}>
+                  <Input
+                    type="time"
+                    value={w.end}
+                    onChange={(e) => {
+                      const pw = [...config.peakWindows];
+                      pw[i] = { ...pw[i], end: e.target.value };
+                      setConfig({ ...config, peakWindows: pw });
+                    }}
+                  />
+                </Field>
+              </div>
+            ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Peak interval (min)">
+                <Input
+                  type="number"
+                  min={1}
+                  value={config.peakIntervalMin}
+                  onChange={(e) =>
+                    setConfig({ ...config, peakIntervalMin: Number(e.target.value) || 1 })
+                  }
+                  id="config-peak-interval"
+                />
+              </Field>
+              <Field label="Off-peak interval (min)">
+                <Input
+                  type="number"
+                  min={1}
+                  value={config.offPeakIntervalMin}
+                  onChange={(e) =>
+                    setConfig({ ...config, offPeakIntervalMin: Number(e.target.value) || 1 })
+                  }
+                  id="config-offpeak-interval"
+                />
+              </Field>
+              <Field label="Peak turn duration (min)">
+                <Input
+                  type="number"
+                  min={1}
+                  value={config.peakTurnMin}
+                  onChange={(e) =>
+                    setConfig({ ...config, peakTurnMin: Number(e.target.value) || 1 })
+                  }
+                  id="config-peak-turn"
+                />
+              </Field>
+              <Field label="Off-peak turn duration (min)">
+                <Input
+                  type="number"
+                  min={1}
+                  value={config.offPeakTurnMin}
+                  onChange={(e) =>
+                    setConfig({ ...config, offPeakTurnMin: Number(e.target.value) || 1 })
+                  }
+                  id="config-offpeak-turn"
+                />
+              </Field>
+            </div>
+          </CardContent>
+        </Card>
 
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Fleet Management</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            Manage your bus fleet, drivers, and active status in the dedicated fleet management page.
-          </p>
-          <Link to="/fleet">
-            <Button variant="outline" className="w-full">
-              <BusIcon className="mr-2 h-4 w-4" /> Go to Fleet Management
-            </Button>
-          </Link>
-        </CardContent>
-      </Card>
-    </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Fleet Management</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Manage your bus fleet, drivers, and active status in the dedicated fleet management
+              page.
+            </p>
+            <Link to="/fleet">
+              <Button variant="outline" className="w-full">
+                <BusIcon className="mr-2 h-4 w-4" /> Go to Fleet Management
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

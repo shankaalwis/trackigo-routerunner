@@ -34,8 +34,10 @@ function getUShapePos(t: number) {
     return { x: 150 + p * 550, y: 80 };
   } else if (t <= sLen + cLen) {
     const p = (t - sLen) / cLen;
-    const x = (1-p)**3 * 700 + 3*(1-p)**2 * p * 950 + 3*(1-p) * p**2 * 950 + p**3 * 700;
-    const y = (1-p)**3 * 80 + 3*(1-p)**2 * p * 80 + 3*(1-p) * p**2 * 320 + p**3 * 320;
+    const x =
+      (1 - p) ** 3 * 700 + 3 * (1 - p) ** 2 * p * 950 + 3 * (1 - p) * p ** 2 * 950 + p ** 3 * 700;
+    const y =
+      (1 - p) ** 3 * 80 + 3 * (1 - p) ** 2 * p * 80 + 3 * (1 - p) * p ** 2 * 320 + p ** 3 * 320;
     return { x, y };
   } else {
     const p = (t - (sLen + cLen)) / sLen;
@@ -216,7 +218,7 @@ export function LiveMap({ result, buses, config }: Props) {
                 strokeDasharray="12 12"
                 fill="none"
               />
-              
+
               {/* Path Endpoints */}
               <circle cx="150" cy="80" r="10" className="fill-primary" />
               <circle cx="150" cy="320" r="10" className="fill-primary" />
@@ -245,7 +247,7 @@ export function LiveMap({ result, buses, config }: Props) {
                       y={pos.y + 4}
                       textAnchor="middle"
                       className="text-[10px] font-bold fill-success-foreground"
-                      style={{ fontSize: '8px' }}
+                      style={{ fontSize: "8px" }}
                     >
                       {Math.round(r.progress * 100)}%
                     </text>
@@ -253,13 +255,15 @@ export function LiveMap({ result, buses, config }: Props) {
                 );
               })}
             </svg>
-            
+
             {realtimeBuses.length === 0 && (
               <div className="absolute inset-0 flex items-center justify-center bg-background/20 backdrop-blur-[1px]">
                 <div className="text-center p-6 rounded-lg bg-card border border-border shadow-lg">
                   <Clock className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
                   <p className="text-sm font-medium">No buses currently active</p>
-                  <p className="text-xs text-muted-foreground">Fleet is currently at terminals or waiting</p>
+                  <p className="text-xs text-muted-foreground">
+                    Fleet is currently at terminals or waiting
+                  </p>
                 </div>
               </div>
             )}
@@ -283,9 +287,7 @@ export function LiveMap({ result, buses, config }: Props) {
               <Badge variant="secondary" className="gap-1">
                 <BusIcon className="h-3 w-3" /> {running.length} running
               </Badge>
-              <Badge variant="outline">
-                {liveQueue.queue.length - running.length} queued
-              </Badge>
+              <Badge variant="outline">{liveQueue.queue.length - running.length} queued</Badge>
             </div>
           </div>
 
@@ -479,8 +481,8 @@ export function LiveMap({ result, buses, config }: Props) {
           </CardHeader>
           <CardContent>
             <p className="mb-3 text-xs text-muted-foreground">
-              Front of queue gets the next departure. Running buses stay in queue position but
-              are unavailable until they return.
+              Front of queue gets the next departure. Running buses stay in queue position but are
+              unavailable until they return.
             </p>
             <div className="flex max-h-[460px] flex-col gap-1.5 overflow-y-auto pr-1">
               {liveQueue.queue.map((id, i) => {
@@ -499,9 +501,7 @@ export function LiveMap({ result, buses, config }: Props) {
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="w-6 font-mono text-xs text-muted-foreground">
-                        #{i + 1}
-                      </span>
+                      <span className="w-6 font-mono text-xs text-muted-foreground">#{i + 1}</span>
                       <span className="font-semibold">{id}</span>
                       {isRunning ? (
                         <Badge className="bg-success text-success-foreground hover:bg-success/90">

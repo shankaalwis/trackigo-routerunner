@@ -29,7 +29,7 @@ export function generateSchedule(
   const activeIds = new Set(activeBuses.map((b) => b.id));
   const start = parseHM(cfg.startTime);
   const end = parseEnd(cfg.endTime);
- 
+
   let queue: string[];
   if (initialQueue && initialQueue.length > 0) {
     const carried = initialQueue.filter((id) => activeIds.has(id));
@@ -39,7 +39,7 @@ export function generateSchedule(
   } else {
     queue = activeBuses.map((b) => b.id);
   }
- 
+
   const states = new Map<string, BusState>();
   activeBuses.forEach((b) =>
     states.set(b.id, {
@@ -49,27 +49,27 @@ export function generateSchedule(
       lastAssignedMin: null,
     }),
   );
- 
+
   const trips: Trip[] = [];
   let cumulative = 0;
   let missed = 0;
   let tripNumber = 0;
- 
+
   let t = start;
   while (t < end) {
     const peak = isPeak(t, cfg);
     const interval = peak ? cfg.peakIntervalMin : cfg.offPeakIntervalMin;
     const duration = peak ? cfg.peakTurnMin : cfg.offPeakTurnMin;
- 
+
     tripNumber++;
-    
+
     // Check for manual override for this specific trip number
     const forcedBusId = overrides[tripNumber];
-    
+
     if (forcedBusId && states.has(forcedBusId)) {
       const st = states.get(forcedBusId)!;
       const lostBusId = queue[0]; // The one at the front of the queue who "lost the chance"
-      
+
       st.lastAssignedMin = t;
       st.nextAvailableMin = t + duration;
       st.totalTurns += 1;
@@ -79,9 +79,9 @@ export function generateSchedule(
       // 1. Remove forced bus from current position
       // 2. If lostBusId is different, move it to the back (the one who lost the chance)
       // 3. Move forced bus to the very back
-      let newQueue = queue.filter(id => id !== forcedBusId);
+      let newQueue = queue.filter((id) => id !== forcedBusId);
       if (lostBusId && lostBusId !== forcedBusId) {
-        newQueue = newQueue.filter(id => id !== lostBusId);
+        newQueue = newQueue.filter((id) => id !== lostBusId);
         newQueue.push(lostBusId); // Re-queue the skipped bus
       }
       newQueue.push(forcedBusId);
@@ -111,7 +111,7 @@ export function generateSchedule(
           break;
         }
       }
- 
+
       if (chosenIdx === -1) {
         missed++;
         trips.push({
@@ -135,10 +135,10 @@ export function generateSchedule(
         st.nextAvailableMin = t + duration;
         st.totalTurns += 1;
         cumulative += 1;
- 
+
         // Move to back
         queue = [...queue.slice(0, chosenIdx), ...queue.slice(chosenIdx + 1), busId];
- 
+
         trips.push({
           tripNumber,
           departureMin: t,
@@ -155,10 +155,10 @@ export function generateSchedule(
         });
       }
     }
- 
+
     t += interval;
   }
- 
+
   return {
     trips,
     finalBusStates: Array.from(states.values()),
@@ -167,4 +167,3 @@ export function generateSchedule(
     completedTurns: cumulative,
   };
 }
-

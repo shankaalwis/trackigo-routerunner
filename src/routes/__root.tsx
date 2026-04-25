@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { ProfileButton } from "@/components/profile-button";
+import { AuthGuard } from "@/components/auth-guard";
 
 function NotFoundComponent() {
   return (
@@ -35,11 +36,13 @@ function RootComponent() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <div className="relative min-h-screen">
-          <Outlet />
-          <ProfileButton />
-          <Toaster richColors position="top-right" />
-        </div>
+        <AuthGuard>
+          <div className="relative min-h-screen">
+            <Outlet />
+            <ProfileButton />
+            <Toaster richColors position="top-right" />
+          </div>
+        </AuthGuard>
       </AuthProvider>
     </ThemeProvider>
   );

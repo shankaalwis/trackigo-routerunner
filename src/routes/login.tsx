@@ -3,7 +3,14 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Bus, Loader2, Mail, Lock, ArrowRight } from "lucide-react";
@@ -66,7 +73,10 @@ function LoginPage() {
           <CardContent className="grid gap-6 px-8">
             <form onSubmit={handleLogin} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-white/60 ml-1">
+                <Label
+                  htmlFor="email"
+                  className="text-xs font-semibold uppercase tracking-wider text-white/60 ml-1"
+                >
                   Email Address
                 </Label>
                 <div className="relative">
@@ -84,7 +94,10 @@ function LoginPage() {
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between ml-1">
-                  <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-white/60">
+                  <Label
+                    htmlFor="password"
+                    className="text-xs font-semibold uppercase tracking-wider text-white/60"
+                  >
                     Password
                   </Label>
                   <a href="#" className="text-xs text-primary hover:underline">
@@ -104,8 +117,8 @@ function LoginPage() {
                   />
                 </div>
               </div>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full h-11 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg shadow-primary/20 group transition-all"
                 disabled={loading}
               >

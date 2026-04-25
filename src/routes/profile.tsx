@@ -31,23 +31,27 @@ function ProfilePage() {
   };
 
   const initials = user.email?.substring(0, 2).toUpperCase() || "U";
-  const joinedDate = new Date(user.created_at).toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric'
+  const joinedDate = new Date(user.created_at).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
   });
 
   return (
     <div className="min-h-screen bg-[#0a0a0b] text-white py-12 px-6">
       <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="flex items-center justify-between">
-          <Button asChild variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5 rounded-xl">
+          <Button
+            asChild
+            variant="ghost"
+            className="text-white/60 hover:text-white hover:bg-white/5 rounded-xl"
+          >
             <Link to="/">
               <ChevronLeft className="mr-2 h-4 w-4" />
               Back to Dashboard
             </Link>
           </Button>
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             onClick={handleSignOut}
             className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-xl"
           >
@@ -67,16 +71,23 @@ function ProfilePage() {
                     {initials}
                   </AvatarFallback>
                 </Avatar>
-                <h2 className="text-xl font-bold text-white">{user.user_metadata?.full_name || "RouteRunner User"}</h2>
+                <h2 className="text-xl font-bold text-white">
+                  {user.user_metadata?.full_name || "RouteRunner User"}
+                </h2>
                 <p className="text-sm text-white/40 mb-4">{user.email}</p>
-                <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 px-3 py-1 rounded-full uppercase tracking-widest text-[10px] font-bold">
+                <Badge
+                  variant="secondary"
+                  className="bg-primary/10 text-primary border-primary/20 px-3 py-1 rounded-full uppercase tracking-widest text-[10px] font-bold"
+                >
                   Administrator
                 </Badge>
               </CardContent>
             </Card>
 
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-widest text-white/30 ml-4 mb-2">Account Stats</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-white/30 ml-4 mb-2">
+                Account Stats
+              </p>
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
                   <p className="text-[10px] uppercase text-white/30 mb-1">Turns Managed</p>
@@ -95,7 +106,9 @@ function ProfilePage() {
             <Card className="bg-white/5 border-white/10 backdrop-blur-xl rounded-3xl overflow-hidden">
               <CardHeader>
                 <CardTitle className="text-xl font-bold">Account Information</CardTitle>
-                <CardDescription className="text-white/40">Manage your profile details and preferences</CardDescription>
+                <CardDescription className="text-white/40">
+                  Manage your profile details and preferences
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid gap-4">
@@ -105,7 +118,9 @@ function ProfilePage() {
                     </div>
                     <div>
                       <p className="text-xs text-white/40 uppercase tracking-wider">Full Name</p>
-                      <p className="font-medium">{user.user_metadata?.full_name || "Not provided"}</p>
+                      <p className="font-medium">
+                        {user.user_metadata?.full_name || "Not provided"}
+                      </p>
                     </div>
                   </div>
 
@@ -114,7 +129,9 @@ function ProfilePage() {
                       <Mail className="h-5 w-5 text-blue-500" />
                     </div>
                     <div>
-                      <p className="text-xs text-white/40 uppercase tracking-wider">Email Address</p>
+                      <p className="text-xs text-white/40 uppercase tracking-wider">
+                        Email Address
+                      </p>
                       <p className="font-medium">{user.email}</p>
                     </div>
                   </div>
@@ -134,7 +151,9 @@ function ProfilePage() {
                       <Shield className="h-5 w-5 text-amber-500" />
                     </div>
                     <div>
-                      <p className="text-xs text-white/40 uppercase tracking-wider">Security Level</p>
+                      <p className="text-xs text-white/40 uppercase tracking-wider">
+                        Security Level
+                      </p>
                       <p className="font-medium">Multi-Factor Authenticated</p>
                     </div>
                   </div>
@@ -144,7 +163,10 @@ function ProfilePage() {
                   <Button className="rounded-xl px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
                     Edit Profile
                   </Button>
-                  <Button variant="outline" className="rounded-xl px-6 border-white/10 hover:bg-white/5 text-white">
+                  <Button
+                    variant="outline"
+                    className="rounded-xl px-6 border-white/10 hover:bg-white/5 text-white"
+                  >
                     Update Password
                   </Button>
                 </div>

@@ -119,14 +119,14 @@ export function FleetManager({ isEmbedded = false }: { isEmbedded?: boolean }) {
               <BusIcon className="h-5 w-5 text-primary" />
               Fleet List ({buses.length})
             </CardTitle>
-            <Badge variant="secondary">
-              {buses.filter((b) => b.active).length} Active Buses
-            </Badge>
+            <Badge variant="secondary">{buses.filter((b) => b.active).length} Active Buses</Badge>
           </CardHeader>
           <CardContent>
             <div className="mb-6 grid gap-4 rounded-xl border border-dashed border-border bg-muted/30 p-4 sm:grid-cols-[1fr_1fr_auto]">
               <div className="space-y-1.5">
-                <Label htmlFor="new-bus-id" className="text-xs">Bus ID / Reg No.</Label>
+                <Label htmlFor="new-bus-id" className="text-xs">
+                  Bus ID / Reg No.
+                </Label>
                 <Input
                   id="new-bus-id"
                   placeholder="e.g. B101"
@@ -135,7 +135,9 @@ export function FleetManager({ isEmbedded = false }: { isEmbedded?: boolean }) {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="new-bus-driver" className="text-xs">Assigned Driver (Optional)</Label>
+                <Label htmlFor="new-bus-driver" className="text-xs">
+                  Assigned Driver (Optional)
+                </Label>
                 <Input
                   id="new-bus-driver"
                   placeholder="e.g. John Doe"
@@ -163,7 +165,9 @@ export function FleetManager({ isEmbedded = false }: { isEmbedded?: boolean }) {
                 <TableBody>
                   {isLoading && (
                     <TableRow>
-                      <TableCell colSpan={4} className="h-24 text-center">Loading fleet...</TableCell>
+                      <TableCell colSpan={4} className="h-24 text-center">
+                        Loading fleet...
+                      </TableCell>
                     </TableRow>
                   )}
                   {!isLoading && buses.length === 0 && (

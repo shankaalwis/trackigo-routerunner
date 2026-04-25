@@ -68,15 +68,23 @@ export function ProfileButton() {
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 p-2 bg-background/95 backdrop-blur-md border-primary/20 shadow-2xl rounded-2xl">
+          <DropdownMenuContent
+            align="end"
+            className="w-56 p-2 bg-background/95 backdrop-blur-md border-primary/20 shadow-2xl rounded-2xl"
+          >
             <DropdownMenuLabel className="font-normal p-2">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user.user_metadata?.full_name || "User"}</p>
+                <p className="text-sm font-medium leading-none">
+                  {user.user_metadata?.full_name || "User"}
+                </p>
                 <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-primary/10" />
-            <DropdownMenuItem asChild className="rounded-lg cursor-pointer focus:bg-primary focus:text-primary-foreground transition-colors p-3">
+            <DropdownMenuItem
+              asChild
+              className="rounded-lg cursor-pointer focus:bg-primary focus:text-primary-foreground transition-colors p-3"
+            >
               <Link to="/profile" className="flex items-center w-full">
                 <User className="mr-3 h-4 w-4" />
                 <span>View Profile</span>

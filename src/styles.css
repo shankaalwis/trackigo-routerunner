@@ -170,15 +170,33 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
   }
-  h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.02em; }
-  .font-mono, code, pre { font-family: var(--font-mono); }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+  .font-mono,
+  code,
+  pre {
+    font-family: var(--font-mono);
+  }
 }
 
 @layer utilities {
   .bg-grid {
     background-image:
-      linear-gradient(to right, color-mix(in oklab, var(--foreground) 6%, transparent) 1px, transparent 1px),
-      linear-gradient(to bottom, color-mix(in oklab, var(--foreground) 6%, transparent) 1px, transparent 1px);
+      linear-gradient(
+        to right,
+        color-mix(in oklab, var(--foreground) 6%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in oklab, var(--foreground) 6%, transparent) 1px,
+        transparent 1px
+      );
     background-size: 32px 32px;
   }
   .glass {
@@ -265,4 +283,3 @@
     max-height: none !important;
   }
 }
-
