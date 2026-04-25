@@ -2,6 +2,8 @@ import { Bus, SchedulerConfig } from "./types";
 
 export const DEFAULT_CONFIG: SchedulerConfig = {
   routeName: "Kaduwela - Colombo",
+  originName: "Kaduwela",
+  destinationName: "Colombo",
   startTime: "04:30",
   endTime: "00:00",
   peakWindows: [

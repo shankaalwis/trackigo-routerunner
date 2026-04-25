@@ -15,6 +15,8 @@ export type PeakWindow = { start: string; end: string }; // "HH:MM"
 
 export type SchedulerConfig = {
   routeName: string;
+  originName: string;
+  destinationName: string;
   startTime: string; // "HH:MM"
   endTime: string; // "HH:MM" — "00:00" treated as 24:00
   peakWindows: PeakWindow[];

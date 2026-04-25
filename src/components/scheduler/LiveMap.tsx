@@ -26,23 +26,17 @@ function parseHM(s: string): number {
   return h * 60 + m;
 }
 
-function getUShapePos(t: number) {
-  const sLen = 0.35;
-  const cLen = 0.3;
-  if (t <= sLen) {
-    const p = t / sLen;
-    return { x: 150 + p * 550, y: 80 };
-  } else if (t <= sLen + cLen) {
-    const p = (t - sLen) / cLen;
-    const x =
-      (1 - p) ** 3 * 700 + 3 * (1 - p) ** 2 * p * 950 + 3 * (1 - p) * p ** 2 * 950 + p ** 3 * 700;
-    const y =
-      (1 - p) ** 3 * 80 + 3 * (1 - p) ** 2 * p * 80 + 3 * (1 - p) * p ** 2 * 320 + p ** 3 * 320;
-    return { x, y };
-  } else {
-    const p = (t - (sLen + cLen)) / sLen;
-    return { x: 700 - p * 550, y: 320 };
-  }
+function getPos(t: number) {
+  const cx = 500;
+  const cy = 200;
+  const rx = 350;
+  const ry = 120;
+  
+  const angle = Math.PI + t * 2 * Math.PI;
+  const x = cx + rx * Math.cos(angle);
+  const y = cy + ry * Math.sin(angle);
+  
+  return { x, y };
 }
 
 export function LiveMap({ result, buses, config }: Props) {
@@ -177,13 +171,20 @@ export function LiveMap({ result, buses, config }: Props) {
         </CardHeader>
         <CardContent>
           <div className="relative h-[400px] w-full rounded-xl border border-primary/10 bg-background/50 p-4 shadow-inner">
-            <div className="absolute left-6 top-1/2 -translate-y-[120px] text-xs">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-xs w-[120px]">
               <div className="font-bold text-primary">Origin</div>
-              <div className="text-muted-foreground">Kaduwela Terminal</div>
+              <div className="text-muted-foreground">{config.originName}</div>
             </div>
-            <div className="absolute left-6 top-1/2 translate-y-[100px] text-xs">
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-right w-[120px]">
               <div className="font-bold text-primary">Destination</div>
-              <div className="text-muted-foreground">Colombo Fort</div>
+              <div className="text-muted-foreground">{config.destinationName}</div>
+            </div>
+            
+            <div className="absolute left-1/2 top-8 -translate-x-1/2 text-[10px] text-muted-foreground font-medium uppercase tracking-widest">
+              Outbound
+            </div>
+            <div className="absolute left-1/2 bottom-8 -translate-x-1/2 text-[10px] text-muted-foreground font-medium uppercase tracking-widest">
+              Return
             </div>
 
             <svg
@@ -191,18 +192,18 @@ export function LiveMap({ result, buses, config }: Props) {
               className="absolute inset-0 h-full w-full"
               preserveAspectRatio="xMidYMid meet"
             >
-              {/* Rotated U Path Shadow */}
+              {/* Round Trip Path Shadow */}
               <path
-                d="M 150 80 L 700 80 C 950 80, 950 320, 700 320 L 150 320"
+                d="M 150 200 A 350 120 0 1 1 850 200 A 350 120 0 1 1 150 200"
                 stroke="var(--primary)"
                 strokeOpacity="0.05"
                 strokeWidth="32"
                 fill="none"
                 strokeLinecap="round"
               />
-              {/* Rotated U Path Road */}
+              {/* Round Trip Path Road */}
               <path
-                d="M 150 80 L 700 80 C 950 80, 950 320, 700 320 L 150 320"
+                d="M 150 200 A 350 120 0 1 1 850 200 A 350 120 0 1 1 150 200"
                 stroke="var(--primary)"
                 strokeOpacity="0.1"
                 strokeWidth="20"
@@ -211,7 +212,7 @@ export function LiveMap({ result, buses, config }: Props) {
               />
               {/* Dashed Center Line */}
               <path
-                d="M 150 80 L 700 80 C 950 80, 950 320, 700 320 L 150 320"
+                d="M 150 200 A 350 120 0 1 1 850 200 A 350 120 0 1 1 150 200"
                 stroke="var(--primary)"
                 strokeOpacity="0.3"
                 strokeWidth="2"
@@ -220,12 +221,12 @@ export function LiveMap({ result, buses, config }: Props) {
               />
 
               {/* Path Endpoints */}
-              <circle cx="150" cy="80" r="10" className="fill-primary" />
-              <circle cx="150" cy="320" r="10" className="fill-primary" />
+              <circle cx="150" cy="200" r="10" className="fill-primary" />
+              <circle cx="850" cy="200" r="10" className="fill-primary" />
 
-              {/* Buses on U-Shape */}
+              {/* Buses on Round Trip */}
               {realtimeBuses.map((r) => {
-                const pos = getUShapePos(r.progress);
+                const pos = getPos(r.progress);
                 return (
                   <g key={r.busId} className="transition-all duration-1000 ease-linear">
                     <circle
@@ -352,13 +353,20 @@ export function LiveMap({ result, buses, config }: Props) {
           <CardContent>
             <div className="relative h-[400px] overflow-hidden rounded-xl border border-border bg-gradient-to-b from-muted/30 to-muted/10 p-6">
               {/* Endpoint labels */}
-              <div className="absolute left-6 top-1/2 -translate-y-[120px] text-xs">
-                <div className="font-semibold">Kaduwela</div>
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-xs w-[120px]">
+                <div className="font-semibold text-base">{config.originName}</div>
                 <div className="text-muted-foreground">Origin</div>
               </div>
-              <div className="absolute left-6 top-1/2 translate-y-[100px] text-xs">
-                <div className="font-semibold">Colombo</div>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-right w-[120px]">
+                <div className="font-semibold text-base">{config.destinationName}</div>
                 <div className="text-muted-foreground">Destination</div>
+              </div>
+              
+              <div className="absolute left-1/2 top-8 -translate-x-1/2 text-[10px] text-muted-foreground font-medium uppercase tracking-widest">
+                Outbound
+              </div>
+              <div className="absolute left-1/2 bottom-8 -translate-x-1/2 text-[10px] text-muted-foreground font-medium uppercase tracking-widest">
+                Return
               </div>
 
               {/* SVG Route */}
@@ -369,7 +377,7 @@ export function LiveMap({ result, buses, config }: Props) {
               >
                 {/* Road shadow */}
                 <path
-                  d="M 150 80 L 700 80 C 950 80, 950 320, 700 320 L 150 320"
+                  d="M 150 200 A 350 120 0 1 1 850 200 A 350 120 0 1 1 150 200"
                   stroke="var(--border)"
                   strokeWidth="22"
                   fill="none"
@@ -377,7 +385,7 @@ export function LiveMap({ result, buses, config }: Props) {
                 />
                 {/* Road */}
                 <path
-                  d="M 150 80 L 700 80 C 950 80, 950 320, 700 320 L 150 320"
+                  d="M 150 200 A 350 120 0 1 1 850 200 A 350 120 0 1 1 150 200"
                   stroke="var(--primary)"
                   strokeOpacity="0.18"
                   strokeWidth="16"
@@ -386,7 +394,7 @@ export function LiveMap({ result, buses, config }: Props) {
                 />
                 {/* Center dashed line */}
                 <path
-                  d="M 150 80 L 700 80 C 950 80, 950 320, 700 320 L 150 320"
+                  d="M 150 200 A 350 120 0 1 1 850 200 A 350 120 0 1 1 150 200"
                   stroke="var(--primary)"
                   strokeOpacity="0.55"
                   strokeWidth="2"
@@ -394,8 +402,8 @@ export function LiveMap({ result, buses, config }: Props) {
                   fill="none"
                 />
                 {/* Endpoints */}
-                <circle cx="150" cy="80" r="9" fill="var(--primary)" />
-                <circle cx="150" cy="320" r="9" fill="var(--primary)" />
+                <circle cx="150" cy="200" r="9" fill="var(--primary)" />
+                <circle cx="850" cy="200" r="9" fill="var(--primary)" />
               </svg>
 
               {/* Bus markers */}
@@ -406,16 +414,15 @@ export function LiveMap({ result, buses, config }: Props) {
                   </div>
                 )}
                 {positioned.map((r) => {
-                  const pos = getUShapePos(r.progress);
-                  // Add small vertical offset for lanes in the straight sections
-                  const offset = r.lane * 15;
+                  const pos = getPos(r.progress);
+                  const offset = r.lane * 12;
                   return (
                     <div
                       key={r.busId}
                       className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-150"
                       style={{
                         left: `${(pos.x / 1000) * 100}%`,
-                        top: `${(pos.y / 400) * 100 + (r.progress < 0.35 || r.progress > 0.65 ? offset : 0)}%`,
+                        top: `${(pos.y / 400) * 100 + offset}%`,
                       }}
                     >
                       <div className="flex flex-col items-center gap-1">
@@ -431,10 +438,9 @@ export function LiveMap({ result, buses, config }: Props) {
               </div>
 
               {/* Progress legend */}
-              <div className="absolute inset-x-6 bottom-3 flex justify-between text-[10px] text-muted-foreground">
-                <span>0 km</span>
-                <span>~ midway</span>
-                <span>~ end</span>
+              <div className="absolute inset-x-6 bottom-3 flex justify-between text-[10px] text-muted-foreground opacity-50">
+                <span>Round Trip Visualization</span>
+                <span>Full Circuit = 100% Progress</span>
               </div>
             </div>
 

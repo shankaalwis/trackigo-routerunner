@@ -61,6 +61,7 @@ import {
   Truck,
   Users,
   Workflow,
+  MapPin,
   Zap,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
@@ -322,20 +323,22 @@ export function Dashboard() {
   }, [result.trips, search, periodFilter, statusFilter, sortKey, sortDir]);
 
   /* ── analytics ─── */
-  const turnsPerBus = useMemo(
-    () =>
-      result.finalBusStates
-        .map((s) => ({ bus: s.id, turns: s.totalTurns }))
-        .sort((a, b) => Number(a.bus.replace(/\D/g, "")) - Number(b.bus.replace(/\D/g, ""))),
-    [result],
-  );
-
   const busiest = [...result.finalBusStates].sort((a, b) => b.totalTurns - a.totalTurns)[0];
   const least = [...result.finalBusStates]
     .filter((b) => b.totalTurns > 0)
     .sort((a, b) => a.totalTurns - b.totalTurns)[0];
   const usedBuses = result.finalBusStates.filter((b) => b.totalTurns > 0).length;
   const avgTurns = usedBuses > 0 ? (result.completedTurns / usedBuses).toFixed(1) : "0";
+
+  const totalTripsCount = result.trips.length;
+  const coveredTripsCount = totalTripsCount - result.missedCount;
+  const efficiency = totalTripsCount > 0 ? Math.round((coveredTripsCount / totalTripsCount) * 100) : 0;
+  
+  const peakTripsCount = result.trips.filter((t) => t.period === "peak").length;
+  const offPeakTripsCount = result.trips.filter((t) => t.period === "off-peak").length;
+  
+  const activeBusesCount = buses.filter((b) => b.active).length;
+  const fleetUtilization = activeBusesCount > 0 ? Math.round((usedBuses / activeBusesCount) * 100) : 0;
 
   /* ── real-time metrics ── */
   const nextTrip = useMemo(() => {
@@ -866,57 +869,60 @@ export function Dashboard() {
 
           {/* ── ANALYTICS TAB ── */}
           <TabsContent value="analytics" className="space-y-4">
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Turns per Bus</CardTitle>
-                </CardHeader>
-                <CardContent className="h-[320px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={turnsPerBus}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                      <XAxis dataKey="bus" stroke="var(--muted-foreground)" />
-                      <YAxis stroke="var(--muted-foreground)" />
-                      <Tooltip
-                        contentStyle={{
-                          background: "var(--card)",
-                          border: "1px solid var(--border)",
-                          borderRadius: 8,
-                        }}
-                      />
-                      <Bar dataKey="turns" fill="var(--primary)" radius={[6, 6, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Schedule Timeline by Bus</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Timeline trips={result.trips} buses={buses} config={config} />
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <InfoCard
-                label="Busiest Bus"
-                value={busiest ? `${busiest.id} • ${busiest.totalTurns} turns` : "—"}
+                label="Schedule Efficiency"
+                value={`${efficiency}%`}
+                icon={<Activity className="h-4 w-4" />}
+              />
+              <InfoCard
+                label="Total Scheduled Trips"
+                value={`${totalTripsCount}`}
+                icon={<MapPin className="h-4 w-4" />}
+              />
+              <InfoCard
+                label="Missed Departures"
+                value={`${result.missedCount}`}
                 icon={<Flame className="h-4 w-4" />}
               />
               <InfoCard
-                label="Least Used Bus"
-                value={least ? `${least.id} • ${least.totalTurns} turns` : "—"}
+                label="Fleet Utilization"
+                value={`${fleetUtilization}%`}
+                icon={<BusIcon className="h-4 w-4" />}
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <InfoCard
+                label="Peak Hours Trips"
+                value={`${peakTripsCount}`}
+                icon={<Activity className="h-4 w-4" />}
+              />
+              <InfoCard
+                label="Off-Peak Trips"
+                value={`${offPeakTripsCount}`}
                 icon={<Snowflake className="h-4 w-4" />}
               />
               <InfoCard
+                label="Busiest Bus"
+                value={busiest ? `${busiest.id} (${busiest.totalTurns} turns)` : "—"}
+                icon={<Flame className="h-4 w-4" />}
+              />
+              <InfoCard
                 label="Average Turns"
-                value={`${avgTurns} per active bus`}
+                value={`${avgTurns}`}
                 icon={<Activity className="h-4 w-4" />}
               />
             </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Bus Analytics Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <BusAnalyticsTable trips={result.trips} buses={buses} />
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* ── LOGIC FLOW TAB ── */}
@@ -1273,66 +1279,89 @@ function ScheduleTable({
   );
 }
 
-/* ── Timeline ────────────────────────────────────────────────────── */
+/* ── Bus Analytics Table ─────────────────────────────────────────── */
 
-function Timeline({
+function BusAnalyticsTable({
   trips,
   buses,
-  config,
 }: {
   trips: Trip[];
   buses: Bus[];
-  config: SchedulerConfig;
 }) {
-  const active = buses.filter((b) => b.active);
-  const startMin = trips[0]?.departureMin ?? 270;
-  const endMin = (trips[trips.length - 1]?.departureMin ?? 1440) + 60;
-  const span = endMin - startMin;
+  const activeBuses = buses.filter((b) => b.active);
+  
+  const busStats = activeBuses.map((bus) => {
+    const busTrips = trips.filter((t) => t.busId === bus.id && !t.missed);
+    const totalTrips = busTrips.length;
+    const peakTrips = busTrips.filter((t) => t.period === "peak").length;
+    const offPeakTrips = busTrips.filter((t) => t.period === "off-peak").length;
+    
+    let firstTripLabel = "—";
+    let lastTripLabel = "—";
+    let activeDuration = "—";
+    
+    if (totalTrips > 0) {
+      firstTripLabel = busTrips[0].departureLabel;
+      const lastTrip = busTrips[totalTrips - 1];
+      const endMin = lastTrip.departureMin + lastTrip.tripDurationMin;
+      lastTripLabel = format12(endMin);
+      
+      const durationMin = endMin - busTrips[0].departureMin;
+      const hours = Math.floor(durationMin / 60);
+      const mins = durationMin % 60;
+      activeDuration = `${hours}h ${mins}m`;
+    }
+    
+    return {
+      id: bus.id,
+      totalTrips,
+      peakTrips,
+      offPeakTrips,
+      firstTripLabel,
+      lastTripLabel,
+      activeDuration,
+    };
+  });
+
   return (
-    <div className="space-y-2">
-      <div className="relative h-6">
-        {config.peakWindows.map((w, i) => {
-          const s =
-            (parseInt(w.start.split(":")[0]) * 60 + parseInt(w.start.split(":")[1]) - startMin) /
-            span;
-          const e =
-            (parseInt(w.end.split(":")[0]) * 60 + parseInt(w.end.split(":")[1]) - startMin) / span;
-          return (
-            <div
-              key={i}
-              className="absolute top-0 h-full rounded bg-peak/15 text-[10px] text-peak-foreground"
-              style={{ left: `${Math.max(0, s) * 100}%`, width: `${Math.max(0, e - s) * 100}%` }}
-            >
-              <span className="px-1">Peak</span>
-            </div>
-          );
-        })}
-      </div>
-      <div className="space-y-1.5">
-        {active.map((bus) => (
-          <div key={bus.id} className="flex items-center gap-2">
-            <div className="w-10 text-xs font-semibold text-muted-foreground">{bus.id}</div>
-            <div className="relative h-6 flex-1 overflow-hidden rounded-md bg-muted/40">
-              {trips
-                .filter((t) => t.busId === bus.id)
-                .map((t) => {
-                  const left = ((t.departureMin - startMin) / span) * 100;
-                  const width = (t.tripDurationMin / span) * 100;
-                  return (
-                    <div
-                      key={t.tripNumber}
-                      title={`Trip ${t.tripNumber} • ${t.departureLabel}`}
-                      className={`absolute top-0 h-full rounded ${
-                        t.period === "peak" ? "bg-peak" : "bg-offpeak"
-                      }`}
-                      style={{ left: `${left}%`, width: `${Math.max(0.5, width)}%` }}
-                    />
-                  );
-                })}
-            </div>
-          </div>
-        ))}
-      </div>
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Bus ID</TableHead>
+            <TableHead className="text-right">Total Trips</TableHead>
+            <TableHead className="text-right">Peak</TableHead>
+            <TableHead className="text-right">Off-Peak</TableHead>
+            <TableHead className="text-right">First Trip</TableHead>
+            <TableHead className="text-right">End Time</TableHead>
+            <TableHead className="text-right">Active Duration</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {busStats.map((stat) => (
+            <TableRow key={stat.id}>
+              <TableCell className="font-medium">{stat.id}</TableCell>
+              <TableCell className="text-right">{stat.totalTrips}</TableCell>
+              <TableCell className="text-right font-medium text-peak">
+                {stat.peakTrips}
+              </TableCell>
+              <TableCell className="text-right font-medium text-offpeak">
+                {stat.offPeakTrips}
+              </TableCell>
+              <TableCell className="text-right">{stat.firstTripLabel}</TableCell>
+              <TableCell className="text-right">{stat.lastTripLabel}</TableCell>
+              <TableCell className="text-right">{stat.activeDuration}</TableCell>
+            </TableRow>
+          ))}
+          {busStats.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={7} className="text-center text-muted-foreground">
+                No active buses found.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -1541,6 +1570,24 @@ function SetupPanel({
                 id="config-route-name"
               />
             </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Origin location">
+                <Input
+                  value={config.originName || ""}
+                  onChange={(e) => setConfig({ ...config, originName: e.target.value })}
+                  id="config-origin-name"
+                  placeholder="e.g. Kaduwela"
+                />
+              </Field>
+              <Field label="Destination location">
+                <Input
+                  value={config.destinationName || ""}
+                  onChange={(e) => setConfig({ ...config, destinationName: e.target.value })}
+                  id="config-destination-name"
+                  placeholder="e.g. Colombo"
+                />
+              </Field>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Start time">
                 <Input
