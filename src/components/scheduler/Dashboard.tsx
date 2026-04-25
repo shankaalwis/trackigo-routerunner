@@ -142,8 +142,8 @@ export function Dashboard() {
   useEffect(() => {
     if (busesLoading || configLoading) return;
 
-    const activeBuses = dbBuses !== null ? dbBuses : DEFAULT_BUSES;
-    const activeConfig = dbConfig || DEFAULT_CONFIG;
+    const activeBuses = dbBuses ?? DEFAULT_BUSES;
+    const activeConfig = dbConfig ?? DEFAULT_CONFIG;
 
     setConfig(activeConfig);
     setBuses(activeBuses);
@@ -227,7 +227,7 @@ export function Dashboard() {
       setCurrentDay(targetDay);
       return;
     }
-    
+
     let initialQueue: string[] | undefined;
     const prevDay = days.find(d => d.day === targetDay - 1);
     if (prevDay) {
@@ -235,14 +235,14 @@ export function Dashboard() {
     } else {
       initialQueue = buses.filter(b => b.active).map(b => b.id);
     }
-    
+
     const newResult = generateSchedule(config, buses, initialQueue);
     const newDay: DaySchedule = {
       day: targetDay,
       result: newResult,
       initialQueue,
     };
-    
+
     setDays(prev => [...prev, newDay]);
     setCurrentDay(targetDay);
     setOverrides({});
@@ -333,10 +333,10 @@ export function Dashboard() {
   const totalTripsCount = result.trips.length;
   const coveredTripsCount = totalTripsCount - result.missedCount;
   const efficiency = totalTripsCount > 0 ? Math.round((coveredTripsCount / totalTripsCount) * 100) : 0;
-  
+
   const peakTripsCount = result.trips.filter((t) => t.period === "peak").length;
   const offPeakTripsCount = result.trips.filter((t) => t.period === "off-peak").length;
-  
+
   const activeBusesCount = buses.filter((b) => b.active).length;
   const fleetUtilization = activeBusesCount > 0 ? Math.round((usedBuses / activeBusesCount) * 100) : 0;
 
@@ -616,14 +616,13 @@ export function Dashboard() {
           {Array.from({ length: 3 }, (_, i) => {
             const offset = i - 1; // -1 (Yesterday), 0 (Today), 1 (Tomorrow)
             const isActive = currentDay === offset;
-            
+
             return (
               <Button
                 key={offset}
                 variant={isActive ? "secondary" : "ghost"}
-                className={`flex items-center justify-center h-7 sm:h-8 px-3 sm:px-4 rounded-full transition-all ${
-                  isActive ? "font-semibold text-foreground bg-secondary" : "font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                }`}
+                className={`flex items-center justify-center h-7 sm:h-8 px-3 sm:px-4 rounded-full transition-all ${isActive ? "font-semibold text-foreground bg-secondary" : "font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  }`}
                 onClick={() => handleSelectDay(offset)}
               >
                 <span className="text-[10px] sm:text-xs tracking-wide">
@@ -784,20 +783,15 @@ export function Dashboard() {
                           className="rounded-lg border border-border bg-card p-4 transition-shadow hover:shadow-md"
                         >
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 font-bold text-primary">
-                                {s.id}
-                              </div>
-                              <div>
-                                {bus?.driver ? (
-                                  <div className="font-semibold">{bus.driver}</div>
-                                ) : (
-                                  <div className="text-xs text-muted-foreground italic">No driver assigned</div>
-                                )}
-                              </div>
+                            <div className="flex items-center gap-2 overflow-hidden">
+                              <span className="text-lg font-bold text-primary whitespace-nowrap">{s.id}</span>
+                              <span className="text-muted-foreground/40 text-xs">•</span>
+                              <span className="font-semibold text-sm truncate">
+                                {bus?.driver || "No Driver"}
+                              </span>
                             </div>
                             <Badge variant={s.totalTurns > 0 ? "default" : "secondary"}>
-                              {s.totalTurns} turns today
+                              {s.totalTurns} turns
                             </Badge>
                           </div>
                           <div className="mt-3 space-y-1 text-xs text-muted-foreground">
@@ -875,9 +869,8 @@ export function Dashboard() {
                       return (
                         <div
                           key={id}
-                          className={`flex items-center justify-between rounded-md border px-3 py-2 ${
-                            i === 0 ? "border-primary/40 bg-primary/5" : "border-border bg-card"
-                          }`}
+                          className={`flex items-center justify-between rounded-md border px-3 py-2 ${i === 0 ? "border-primary/40 bg-primary/5" : "border-border bg-card"
+                            }`}
                         >
                           <div className="flex items-center gap-2">
                             <span className="w-6 text-xs font-mono text-muted-foreground">
@@ -991,7 +984,7 @@ function KPI({
   tone = "default",
   className = "",
 }: {
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   label: string;
   value: React.ReactNode;
   tone?: "default" | "success" | "warning" | "info";
@@ -1086,9 +1079,8 @@ function ScheduleTable({
           return (
             <div
               key={t.tripNumber}
-              className={`rounded-2xl border bg-card p-4 shadow-sm ${
-                t.period === "peak" ? "border-peak/20 bg-peak/5" : "border-border"
-              }`}
+              className={`rounded-2xl border bg-card p-4 shadow-sm ${t.period === "peak" ? "border-peak/20 bg-peak/5" : "border-border"
+                }`}
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -1324,23 +1316,23 @@ function BusAnalyticsTable({
     const totalTrips = busTrips.length;
     const peakTrips = busTrips.filter((t) => t.period === "peak").length;
     const offPeakTrips = busTrips.filter((t) => t.period === "off-peak").length;
-    
+
     let firstTripLabel = "—";
     let lastTripLabel = "—";
     let activeDuration = "—";
-    
+
     if (totalTrips > 0) {
       firstTripLabel = busTrips[0].departureLabel;
       const lastTrip = busTrips[totalTrips - 1];
       const endMin = lastTrip.departureMin + lastTrip.tripDurationMin;
       lastTripLabel = format12(endMin);
-      
+
       const durationMin = endMin - busTrips[0].departureMin;
       const hours = Math.floor(durationMin / 60);
       const mins = durationMin % 60;
       activeDuration = `${hours}h ${mins}m`;
     }
-    
+
     return {
       id: bus.id,
       active: bus.active,
@@ -1514,9 +1506,8 @@ function FlowChart() {
             {steps.map((s, i) => (
               <div
                 key={i}
-                className={`rounded-xl border-2 bg-card p-5 shadow-sm transition-all hover:shadow-md ${
-                  s.decision ? "border-dashed" : "border-solid"
-                }`}
+                className={`rounded-xl border-2 bg-card p-5 shadow-sm transition-all hover:shadow-md ${s.decision ? "border-dashed" : "border-solid"
+                  }`}
                 style={{ borderColor: `color-mix(in oklab, ${s.color} 40%, transparent)` }}
               >
                 <div className="flex items-center gap-3">

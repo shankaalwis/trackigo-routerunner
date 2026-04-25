@@ -26,26 +26,51 @@ function parseHM(s: string): number {
   return h * 60 + m;
 }
 
-function getPos(t: number) {
-  const cx = 500;
-  const cy = 200;
-  const rx = 350;
-  const ry = 120;
-  
-  const angle = Math.PI + t * 2 * Math.PI;
-  const x = cx + rx * Math.cos(angle);
-  const y = cy + ry * Math.sin(angle);
-  
-  return { x, y };
-}
+const ROUTE_PATH = "M 150 200 L 230 140 L 320 200 C 400 150, 480 250, 580 180 S 720 140, 850 200 L 780 280 L 650 330 C 550 280, 450 380, 350 300 L 240 340 Z";
 
 export function LiveMap({ result, buses, config }: Props) {
+  // Pre-calculate points along the irregular path for smooth animation
+  const pathPoints = useMemo(() => {
+    if (typeof document === "undefined") return [];
+    try {
+      const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      p.setAttribute("d", ROUTE_PATH);
+      const len = p.getTotalLength();
+      const pts = [];
+      const steps = 200;
+      for (let i = 0; i <= steps; i++) {
+        const pt = p.getPointAtLength((i / steps) * len);
+        pts.push({ x: pt.x, y: pt.y });
+      }
+      return pts;
+    } catch (e) {
+      return [];
+    }
+  }, []);
+
+  const getPos = (t: number) => {
+    if (pathPoints.length === 0) {
+      // Linear fallback if SVG measurement fails or during SSR
+      return { x: 150 + t * 700, y: 200 };
+    }
+    const steps = pathPoints.length - 1;
+    const idx = Math.min(steps - 1, Math.floor(t * steps));
+    const nextIdx = idx + 1;
+    const ratio = (t * steps) % 1;
+    const p1 = pathPoints[idx];
+    const p2 = pathPoints[nextIdx];
+    return {
+      x: p1.x + (p2.x - p1.x) * ratio,
+      y: p1.y + (p2.y - p1.y) * ratio,
+    };
+  };
+
   const startMin = parseHM(config.startTime);
   const endMin = config.endTime === "00:00" ? 1440 : parseHM(config.endTime);
 
   const [now, setNow] = useState(startMin);
   const [playing, setPlaying] = useState(true);
-  const [speed, setSpeed] = useState(0.06); // simulated minutes per real second (0.1% of 1x)
+  const [speed, setSpeed] = useState(15); // default to 0.25x (15 mins/sec)
 
   // Auto-advance simulation
   useEffect(() => {
@@ -194,7 +219,7 @@ export function LiveMap({ result, buses, config }: Props) {
             >
               {/* Round Trip Path Shadow */}
               <path
-                d="M 150 200 A 350 120 0 1 1 850 200 A 350 120 0 1 1 150 200"
+                d={ROUTE_PATH}
                 stroke="var(--primary)"
                 strokeOpacity="0.05"
                 strokeWidth="32"
@@ -203,7 +228,7 @@ export function LiveMap({ result, buses, config }: Props) {
               />
               {/* Round Trip Path Road */}
               <path
-                d="M 150 200 A 350 120 0 1 1 850 200 A 350 120 0 1 1 150 200"
+                d={ROUTE_PATH}
                 stroke="var(--primary)"
                 strokeOpacity="0.1"
                 strokeWidth="20"
@@ -212,7 +237,7 @@ export function LiveMap({ result, buses, config }: Props) {
               />
               {/* Dashed Center Line */}
               <path
-                d="M 150 200 A 350 120 0 1 1 850 200 A 350 120 0 1 1 150 200"
+                d={ROUTE_PATH}
                 stroke="var(--primary)"
                 strokeOpacity="0.3"
                 strokeWidth="2"
@@ -377,7 +402,7 @@ export function LiveMap({ result, buses, config }: Props) {
               >
                 {/* Road shadow */}
                 <path
-                  d="M 150 200 A 350 120 0 1 1 850 200 A 350 120 0 1 1 150 200"
+                  d={ROUTE_PATH}
                   stroke="var(--border)"
                   strokeWidth="22"
                   fill="none"
@@ -385,7 +410,7 @@ export function LiveMap({ result, buses, config }: Props) {
                 />
                 {/* Road */}
                 <path
-                  d="M 150 200 A 350 120 0 1 1 850 200 A 350 120 0 1 1 150 200"
+                  d={ROUTE_PATH}
                   stroke="var(--primary)"
                   strokeOpacity="0.18"
                   strokeWidth="16"
@@ -394,7 +419,7 @@ export function LiveMap({ result, buses, config }: Props) {
                 />
                 {/* Center dashed line */}
                 <path
-                  d="M 150 200 A 350 120 0 1 1 850 200 A 350 120 0 1 1 150 200"
+                  d={ROUTE_PATH}
                   stroke="var(--primary)"
                   strokeOpacity="0.55"
                   strokeWidth="2"
