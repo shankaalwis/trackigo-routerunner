@@ -1288,9 +1288,7 @@ function BusAnalyticsTable({
   trips: Trip[];
   buses: Bus[];
 }) {
-  const activeBuses = buses.filter((b) => b.active);
-  
-  const busStats = activeBuses.map((bus) => {
+  const busStats = buses.map((bus) => {
     const busTrips = trips.filter((t) => t.busId === bus.id && !t.missed);
     const totalTrips = busTrips.length;
     const peakTrips = busTrips.filter((t) => t.period === "peak").length;
@@ -1314,6 +1312,7 @@ function BusAnalyticsTable({
     
     return {
       id: bus.id,
+      active: bus.active,
       totalTrips,
       peakTrips,
       offPeakTrips,
@@ -1329,6 +1328,7 @@ function BusAnalyticsTable({
         <TableHeader>
           <TableRow>
             <TableHead>Bus ID</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead className="text-right">Total Trips</TableHead>
             <TableHead className="text-right">Peak</TableHead>
             <TableHead className="text-right">Off-Peak</TableHead>
@@ -1339,14 +1339,21 @@ function BusAnalyticsTable({
         </TableHeader>
         <TableBody>
           {busStats.map((stat) => (
-            <TableRow key={stat.id}>
+            <TableRow key={stat.id} className={!stat.active ? "opacity-50" : ""}>
               <TableCell className="font-medium">{stat.id}</TableCell>
+              <TableCell>
+                {stat.active ? (
+                  <Badge variant="outline" className="border-green-500/30 text-green-500 bg-green-500/10">Active</Badge>
+                ) : (
+                  <Badge variant="outline" className="border-muted-foreground/30 text-muted-foreground bg-muted-foreground/10">Inactive</Badge>
+                )}
+              </TableCell>
               <TableCell className="text-right">{stat.totalTrips}</TableCell>
               <TableCell className="text-right font-medium text-peak">
-                {stat.peakTrips}
+                {stat.peakTrips > 0 ? stat.peakTrips : "—"}
               </TableCell>
               <TableCell className="text-right font-medium text-offpeak">
-                {stat.offPeakTrips}
+                {stat.offPeakTrips > 0 ? stat.offPeakTrips : "—"}
               </TableCell>
               <TableCell className="text-right">{stat.firstTripLabel}</TableCell>
               <TableCell className="text-right">{stat.lastTripLabel}</TableCell>
@@ -1355,8 +1362,8 @@ function BusAnalyticsTable({
           ))}
           {busStats.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="text-center text-muted-foreground">
-                No active buses found.
+              <TableCell colSpan={8} className="text-center text-muted-foreground">
+                No buses found.
               </TableCell>
             </TableRow>
           )}
