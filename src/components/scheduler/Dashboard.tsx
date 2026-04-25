@@ -446,6 +446,9 @@ export function Dashboard() {
                 <p className="text-[10px] md:text-xs font-bold text-primary/70 uppercase tracking-[0.2em] mt-1">
                   by TrackiGo
                 </p>
+                <p className="text-[10px] font-medium text-muted-foreground/60 mt-0.5">
+                  v1.1.5
+                </p>
                 <div className="mt-2 flex flex-wrap items-center justify-center md:justify-start gap-2 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1.5">
                     <Route className="h-4 w-4" />
